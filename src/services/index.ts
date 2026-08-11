@@ -14,6 +14,9 @@ import { MockPaymentService } from './mock/MockPaymentService';
 import { MockExpenseService } from './mock/MockExpenseService';
 import { MockReportService, MockGlobalSearchService } from './mock/MockReportService';
 
+import { ITemplateService } from './interfaces/TemplateService';
+import { MockTemplateService } from './mock/MockTemplateService';
+
 // Central Service Registry (Currently bound to Mock implementations)
 export const customerService: ICustomerService = new MockCustomerService();
 export const itemService: IItemService = new MockItemService();
@@ -23,3 +26,5 @@ export const paymentService: IPaymentService = new MockPaymentService();
 export const expenseService: IExpenseService = new MockExpenseService();
 export const reportService: IReportService = new MockReportService();
 export const globalSearchService: IGlobalSearchService = new MockGlobalSearchService();
+export const templateService: ITemplateService = new MockTemplateService();
+

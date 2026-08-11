@@ -2,10 +2,11 @@
 
 import * as React from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { invoiceService, quoteService, customerService } from '@/services';
+import { invoiceService, quoteService, customerService, templateService } from '@/services';
 import { InvoiceCreateInput } from '@/types/invoice';
 import { DocumentItem } from '@/types/quote';
 import { Customer } from '@/types/customer';
+import { InvoiceTemplate } from '@/types/template';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,9 +17,11 @@ import { CurrencyDisplay } from '@/components/ui/currency-display';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { DocumentPreview } from '@/components/domain/document/document-preview';
+import { DocumentRenderer } from '@/components/domain/document/document-renderer';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { calculateDocumentTotals } from '@/lib/calculations';
 import { LoadingState } from '@/components/ui/loading-state';
-import { Plus, Trash2, ArrowLeft, Save, Send, Eye } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft, Save, Send, Eye, Layers, Edit } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 function NewInvoiceForm() {
@@ -41,6 +44,19 @@ function NewInvoiceForm() {
   const [applyRoundOff, setApplyRoundOff] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
   const [previewOpen, setPreviewOpen] = React.useState(false);
+
+  const [templates, setTemplates] = React.useState<InvoiceTemplate[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = React.useState<string>('tmpl-modern');
+
+  React.useEffect(() => {
+    templateService.getTemplates().then((res) => {
+      setTemplates(res.data);
+      const def = res.data.find((t) => t.isDefault);
+      if (def) setSelectedTemplateId(def.id);
+    });
+  }, []);
+
+  const selectedTemplate = templates.find((t) => t.id === selectedTemplateId);
 
   const [items, setItems] = React.useState<DocumentItem[]>([
     {
@@ -202,6 +218,44 @@ function NewInvoiceForm() {
 
       <Card className="border-slate-200 shadow-sm">
         <CardContent className="p-6 space-y-6">
+          {/* Template Selector Bar */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 bg-indigo-50/50 rounded-xl border border-indigo-100 gap-3">
+            <div className="flex items-center space-x-2">
+              <Layers className="h-4 w-4 text-indigo-600 shrink-0" />
+              <div>
+                <span className="text-xs font-bold text-slate-900 block">Invoice Template</span>
+                <span className="text-[11px] text-slate-500">Choose custom branding theme for this invoice</span>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
+                <SelectTrigger className="w-52 h-8 text-xs bg-white border-slate-300 font-bold text-slate-800">
+                  <SelectValue placeholder="Select Template" />
+                </SelectTrigger>
+                <SelectContent>
+                  {templates.map((tmpl) => (
+                    <SelectItem key={tmpl.id} value={tmpl.id}>
+                      {tmpl.name} {tmpl.isDefault ? '(Default)' : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {selectedTemplate && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => router.push(`/app/templates/${selectedTemplate.id}/edit`)}
+                  className="h-8 text-xs bg-white"
+                  title="Customize this template layout"
+                >
+                  <Edit className="h-3 w-3 mr-1 text-slate-600" /> Customize
+                </Button>
+              )}
+            </div>
+          </div>
+
           {/* Customer Selection */}
           <div className="space-y-3">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Customer Details</h3>
@@ -426,10 +480,19 @@ function NewInvoiceForm() {
             <DialogTitle>Invoice Preview</DialogTitle>
           </DialogHeader>
           <div className="py-4">
-            <DocumentPreview
-              documentType="Invoice"
-              documentData={buildInvoiceObject('draft') as any}
-            />
+            {selectedTemplate ? (
+              <DocumentRenderer
+                documentType="Invoice"
+                documentData={buildInvoiceObject('draft') as any}
+                templateConfig={selectedTemplate.config}
+                sampleMode={true}
+              />
+            ) : (
+              <DocumentPreview
+                documentType="Invoice"
+                documentData={buildInvoiceObject('draft') as any}
+              />
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setPreviewOpen(false)}>

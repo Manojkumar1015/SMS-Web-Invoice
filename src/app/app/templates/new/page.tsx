@@ -2,139 +2,176 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
+import { templateService } from '@/services';
+import { mockTemplates } from '@/data/mockTemplates';
+import { InvoiceTemplate, TemplateCategory } from '@/types/template';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { ArrowLeft, Save } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { ArrowLeft, ArrowRight, Check, Sparkles, Layers } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function NewTemplatePage() {
   const router = useRouter();
   const { toast } = useToast();
 
-  const [name, setName] = React.useState('Custom Indigo Pro');
-  const [themeColor, setThemeColor] = React.useState('#4f46e5');
-  const [logoPosition, setLogoPosition] = React.useState<'left' | 'right' | 'center'>('left');
-  const [showGstin, setShowGstin] = React.useState(true);
-  const [showTerms, setShowTerms] = React.useState(true);
-  const [footerText, setFooterText] = React.useState('Thank you for your business!');
+  const [name, setName] = React.useState('My Custom Invoice Layout');
+  const [description, setDescription] = React.useState('Customized invoice layout design for client billing.');
+  const [selectedBaseId, setSelectedBaseId] = React.useState<string>('tmpl-modern');
+  const [submitting, setSubmitting] = React.useState(false);
 
-  const handleSave = () => {
-    toast({ title: 'Template Saved', description: `Template "${name}" saved.`, variant: 'success' });
-    router.push('/app/templates');
+  const selectedBase = mockTemplates.find((t) => t.id === selectedBaseId) || mockTemplates[0];
+
+  const handleContinue = async () => {
+    if (!name.trim()) {
+      toast({ title: 'Template Name Required', description: 'Please provide a template name.', variant: 'destructive' });
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      // Duplicate selected base template configuration with user's new title
+      const baseConfig = JSON.parse(JSON.stringify(selectedBase.config));
+      baseConfig.name = name;
+      baseConfig.description = description;
+
+      const created = await templateService.createTemplate({
+        name,
+        description,
+        category: selectedBase.category,
+        isSystem: false,
+        isDefault: false,
+        config: baseConfig,
+      });
+
+      toast({
+        title: 'Template Created',
+        description: `Template "${created.name}" initialized. Redirecting to Template Studio...`,
+        variant: 'success',
+      });
+
+      router.push(`/app/templates/${created.id}/edit`);
+    } catch {
+      toast({ title: 'Error', description: 'Could not create template.', variant: 'destructive' });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-5xl mx-auto">
       <PageHeader
-        title="Template Designer"
-        subtitle="Configure branding colors, typography, and invoice layout elements."
+        title="Create Invoice Template"
+        subtitle="Provide a template title and choose a base layout design to customize in Template Studio."
         breadcrumbs={[
           { label: 'Templates', href: '/app/templates' },
-          { label: 'New Template' },
+          { label: 'Create Template' },
         ]}
         actions={
-          <div className="flex items-center space-x-2">
-            <Button variant="outline" size="sm" onClick={() => router.push('/app/templates')}>
-              <ArrowLeft className="h-4 w-4 mr-1" /> Cancel
-            </Button>
-            <Button size="sm" onClick={handleSave}>
-              <Save className="h-4 w-4 mr-1" /> Save Template
-            </Button>
-          </div>
+          <Button variant="outline" size="sm" onClick={() => router.push('/app/templates')}>
+            <ArrowLeft className="h-4 w-4 mr-1.5" /> Cancel
+          </Button>
         }
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Designer Form Controls */}
-        <Card>
+      <div className="space-y-6">
+        {/* Step 1: Metadata */}
+        <Card className="border-slate-200 shadow-xs">
           <CardContent className="p-6 space-y-4">
-            <h3 className="text-sm font-semibold text-foreground border-b border-border pb-2">Theme Properties</h3>
-            <div>
-              <label className="text-xs font-semibold text-foreground mb-1 block">Template Name</label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} />
-            </div>
+            <h3 className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-2">
+              1. Template Title & Description
+            </h3>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-xs font-semibold text-foreground mb-1 block">Primary Accent Color</label>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="color"
-                    value={themeColor}
-                    onChange={(e) => setThemeColor(e.target.value)}
-                    className="h-9 w-12 rounded border border-border cursor-pointer bg-surface"
-                  />
-                  <Input value={themeColor} onChange={(e) => setThemeColor(e.target.value)} className="font-mono text-xs" />
-                </div>
+                <label className="text-xs font-bold text-slate-700 mb-1.5 block">Template Name *</label>
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. Corporate GST Blue"
+                />
               </div>
+
               <div>
-                <label className="text-xs font-semibold text-foreground mb-1 block">Logo Alignment</label>
-                <Select value={logoPosition} onValueChange={(val) => setLogoPosition(val as any)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="left">Left Aligned</SelectItem>
-                    <SelectItem value="center">Center Aligned</SelectItem>
-                    <SelectItem value="right">Right Aligned</SelectItem>
-                  </SelectContent>
-                </Select>
+                <label className="text-xs font-bold text-slate-700 mb-1.5 block">Description</label>
+                <Input
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="e.g. Standard layout for software consultancy invoices"
+                />
               </div>
-            </div>
-
-            <div className="space-y-2 pt-2 border-t border-border">
-              <label className="text-xs font-semibold text-foreground block">Display Elements</label>
-              <div className="flex items-center space-x-2">
-                <input type="checkbox" id="showGstin" checked={showGstin} onChange={(e) => setShowGstin(e.target.checked)} className="h-4 w-4" />
-                <label htmlFor="showGstin" className="text-xs">Include Company GSTIN & PAN</label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <input type="checkbox" id="showTerms" checked={showTerms} onChange={(e) => setShowTerms(e.target.checked)} className="h-4 w-4" />
-                <label htmlFor="showTerms" className="text-xs">Include Terms & Payment Notes</label>
-              </div>
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-foreground mb-1 block">Footer Text</label>
-              <Textarea value={footerText} onChange={(e) => setFooterText(e.target.value)} rows={2} />
             </div>
           </CardContent>
         </Card>
 
-        {/* Live Preview Box */}
-        <Card>
-          <CardContent className="p-6">
-            <h3 className="text-sm font-semibold text-foreground mb-4">Live Preview</h3>
-            <div className="rounded-lg border border-border bg-white p-6 shadow-xs text-xs text-slate-900 space-y-4">
-              <div className="flex justify-between items-center pb-4 border-b border-border">
-                <div style={{ textAlign: logoPosition }}>
-                  <div className="flex h-8 w-8 items-center justify-center rounded-md font-bold text-white shadow-xs" style={{ backgroundColor: themeColor }}>
-                    S
+        {/* Step 2: Base Selection */}
+        <Card className="border-slate-200 shadow-xs">
+          <CardContent className="p-6 space-y-4">
+            <h3 className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-2">
+              2. Choose a Base Layout Design
+            </h3>
+            <p className="text-xs text-slate-500">
+              Select an initial layout structure. You can customize colors, fonts, margins, headers, and column settings in the next step.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-2">
+              {mockTemplates.map((base) => {
+                const isSelected = base.id === selectedBaseId;
+                const primaryColor = base.config.colors?.primary || '#4f46e5';
+
+                return (
+                  <div
+                    key={base.id}
+                    onClick={() => setSelectedBaseId(base.id)}
+                    className={`rounded-xl border-2 p-3 cursor-pointer transition-all flex flex-col justify-between relative ${
+                      isSelected
+                        ? 'border-indigo-600 bg-indigo-50/20 ring-2 ring-indigo-600/30 shadow-md'
+                        : 'border-slate-200 bg-white hover:border-slate-300'
+                    }`}
+                  >
+                    {isSelected && (
+                      <div className="absolute top-2 right-2 h-5 w-5 rounded-full bg-indigo-600 text-white flex items-center justify-center">
+                        <Check className="h-3 w-3" />
+                      </div>
+                    )}
+
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <div className="h-4 w-4 rounded-full border shrink-0" style={{ backgroundColor: primaryColor }} />
+                        <h4 className="text-xs font-bold text-slate-900 truncate">{base.name}</h4>
+                      </div>
+                      <p className="text-[10px] text-slate-500 line-clamp-2">{base.description}</p>
+                    </div>
+
+                    {/* Mini Visual Icon Box */}
+                    <div className="mt-3 h-20 rounded-lg border border-slate-200 bg-slate-50 p-2 space-y-1 text-[8px]">
+                      <div className="h-3 w-full rounded flex items-center justify-between px-1 text-white font-bold" style={{ backgroundColor: primaryColor }}>
+                        <span>INVOICE</span>
+                      </div>
+                      <div className="h-4 bg-white rounded border border-slate-200 p-1" />
+                      <div className="h-6 bg-white rounded border border-slate-200 p-1" />
+                    </div>
                   </div>
-                  <h4 className="font-bold text-sm mt-1">Acme Software Pvt Ltd</h4>
-                  {showGstin && <p className="text-[10px] text-slate-500 font-mono">GSTIN: 27AAAAA0000A1Z5</p>}
-                </div>
-                <div className="text-right">
-                  <span className="font-bold text-base uppercase" style={{ color: themeColor }}>INVOICE</span>
-                  <p className="font-mono text-[11px] font-semibold text-slate-600">INV-2026-001</p>
-                </div>
-              </div>
-              <div className="p-3 bg-slate-50 rounded border border-slate-200">
-                <span className="font-semibold text-[10px] text-slate-500 uppercase">Billed To:</span>
-                <p className="font-bold">Acme Solutions Pvt Ltd</p>
-              </div>
-              <div className="border border-slate-200 rounded p-2 text-center text-slate-400 text-[11px]">
-                [Sample Line Items Grid Preview]
-              </div>
-              <div className="pt-2 border-t border-slate-200 text-right font-bold text-sm" style={{ color: themeColor }}>
-                Total: ₹2,30,100.00
-              </div>
-              <p className="text-[10px] text-slate-500 text-center pt-2 border-t border-slate-100">{footerText}</p>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
+
+        {/* Action Button */}
+        <div className="flex justify-end pt-2">
+          <Button
+            size="lg"
+            disabled={submitting}
+            onClick={handleContinue}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md"
+          >
+            Continue to Template Studio <ArrowRight className="h-4 w-4 ml-2" />
+          </Button>
+        </div>
       </div>
     </div>
   );

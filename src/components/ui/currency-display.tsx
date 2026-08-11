@@ -9,6 +9,7 @@ interface CurrencyDisplayProps {
   currency?: string;
   className?: string;
   negativeIsRed?: boolean;
+  style?: React.CSSProperties;
 }
 
 export function CurrencyDisplay({
@@ -16,11 +17,13 @@ export function CurrencyDisplay({
   currency = 'INR',
   className,
   negativeIsRed = true,
+  style,
 }: CurrencyDisplayProps) {
   const isNegative = amount < 0;
 
   return (
     <span
+      style={style}
       className={cn(
         'font-mono text-sm font-medium tracking-tight',
         negativeIsRed && isNegative && 'text-red-600 font-semibold',

@@ -2,12 +2,14 @@
 
 import * as React from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { invoiceService, paymentService } from '@/services';
+import { invoiceService, paymentService, templateService } from '@/services';
 import { Invoice } from '@/types/invoice';
 import { Payment } from '@/types/payment';
+import { InvoiceTemplate } from '@/types/template';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { DocumentPreview } from '@/components/domain/document/document-preview';
+import { DocumentRenderer } from '@/components/domain/document/document-renderer';
 import { InvoiceStatusBadge } from '@/components/domain/invoice/invoice-status-badge';
 import { DocumentNumber } from '@/components/ui/document-number';
 import { RecordPaymentDialog } from '@/components/domain/invoice/record-payment-dialog';
@@ -32,6 +34,7 @@ export default function InvoiceDetailPage() {
   const [loading, setLoading] = React.useState(true);
   const [paymentDialogOpen, setPaymentDialogOpen] = React.useState(false);
   const [cancellingInvoice, setCancellingInvoice] = React.useState(false);
+  const [template, setTemplate] = React.useState<InvoiceTemplate | null>(null);
 
   const loadInvoiceData = React.useCallback(async () => {
     setLoading(true);
@@ -42,6 +45,8 @@ export default function InvoiceDetailPage() {
         const pmts = await paymentService.getPayments({ search: inv.invoiceNumber });
         setPayments(pmts.data.filter((p) => p.invoiceId === inv.id || p.invoiceNumber === inv.invoiceNumber));
       }
+      const defTmpl = await templateService.getDefaultTemplate();
+      setTemplate(defTmpl);
     } finally {
       setLoading(false);
     }
@@ -220,7 +225,16 @@ export default function InvoiceDetailPage() {
         </TabsList>
 
         <TabsContent value="overview" className="mt-4">
-          <DocumentPreview documentType="Invoice" documentData={invoice} />
+          {template ? (
+            <DocumentRenderer
+              documentType="Invoice"
+              documentData={invoice}
+              templateConfig={template.config}
+              sampleMode={false}
+            />
+          ) : (
+            <DocumentPreview documentType="Invoice" documentData={invoice} />
+          )}
         </TabsContent>
 
         <TabsContent value="payments" className="mt-4">
