@@ -21,6 +21,8 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { paymentService, invoiceService } from '@/services';
 import { formatCurrency } from '@/lib/formatters';
 
+import { useToast } from '@/hooks/use-toast';
+
 interface RecordPaymentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -34,6 +36,7 @@ export function RecordPaymentDialog({
   invoice,
   onSuccess,
 }: RecordPaymentDialogProps) {
+  const { toast } = useToast();
   const [submitting, setSubmitting] = React.useState(false);
 
   const defaultValues = React.useMemo<PaymentCreateInput>(
@@ -78,8 +81,19 @@ export function RecordPaymentDialog({
       await invoiceService.updateInvoice(invoice.id, {
         amountPaid: newPaid,
       } as any);
+      toast({
+        title: 'Payment Recorded',
+        description: `Recorded payment of ₹${data.amount.toLocaleString('en-IN')} for ${invoice.invoiceNumber}.`,
+        variant: 'success',
+      });
       onSuccess();
       onOpenChange(false);
+    } catch {
+      toast({
+        title: 'Error',
+        description: 'Failed to record payment.',
+        variant: 'destructive',
+      });
     } finally {
       setSubmitting(false);
     }
@@ -132,6 +146,7 @@ export function RecordPaymentDialog({
                 <SelectItem value="credit_card">Credit / Debit Card</SelectItem>
                 <SelectItem value="cash">Cash</SelectItem>
                 <SelectItem value="cheque">Cheque</SelectItem>
+                <SelectItem value="other">Other Method</SelectItem>
               </SelectContent>
             </Select>
           </div>

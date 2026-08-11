@@ -61,7 +61,7 @@ export const quoteFormSchema = z.object({
   items: z.array(documentItemSchema).min(1, 'Add at least one line item'),
   notes: z.string().optional(),
   terms: z.string().optional(),
-  status: z.enum(['draft', 'sent', 'accepted', 'declined', 'expired']),
+  status: z.enum(['draft', 'sent', 'viewed', 'accepted', 'declined', 'expired', 'converted']),
 });
 
 export const invoiceFormSchema = z.object({
@@ -84,7 +84,7 @@ export const paymentFormSchema = z.object({
   customerName: z.string().min(1, 'Customer name required'),
   date: z.string().min(1, 'Payment date required'),
   amount: z.coerce.number().positive('Payment amount must be greater than 0'),
-  paymentMethod: z.enum(['bank_transfer', 'credit_card', 'upi', 'cash', 'cheque']),
+  paymentMethod: z.enum(['bank_transfer', 'credit_card', 'upi', 'cash', 'cheque', 'other']),
   referenceNumber: z.string().optional(),
   notes: z.string().optional(),
 });

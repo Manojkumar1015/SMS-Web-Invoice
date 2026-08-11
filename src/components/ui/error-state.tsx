@@ -9,6 +9,7 @@ interface ErrorStateProps {
   title?: string;
   description?: string;
   onRetry?: () => void;
+  action?: React.ReactNode;
   className?: string;
 }
 
@@ -16,6 +17,7 @@ export function ErrorState({
   title = 'Something went wrong',
   description = 'An error occurred while loading data. Please try again.',
   onRetry,
+  action,
   className,
 }: ErrorStateProps) {
   return (

@@ -6,6 +6,11 @@ export interface FilterParams {
   customerId?: string;
   dateFrom?: string;
   dateTo?: string;
+  dateStart?: string;
+  dateEnd?: string;
+  minAmount?: number;
+  maxAmount?: number;
+  paymentStatus?: string;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
 }

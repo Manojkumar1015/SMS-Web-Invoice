@@ -2,71 +2,75 @@
 
 import * as React from 'react';
 import { CurrencyDisplay } from '@/components/ui/currency-display';
+import { DocumentPaymentSection } from './document-payment-section';
 
 interface DocumentTotalsProps {
   subtotal: number;
   discountTotal: number;
   taxTotal: number;
+  roundOff?: number;
   total: number;
   amountPaid?: number;
   amountDue?: number;
+  showPaymentDetails?: boolean;
 }
 
 export function DocumentTotals({
   subtotal,
   discountTotal,
   taxTotal,
+  roundOff = 0,
   total,
   amountPaid,
   amountDue,
+  showPaymentDetails = true,
 }: DocumentTotalsProps) {
   return (
-    <div className="flex flex-col sm:flex-row justify-between gap-6 border-t border-border pt-4 text-xs">
-      <div className="flex-1 space-y-2">
-        <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-          Payment & Bank Details:
-        </div>
-        <div className="p-3 rounded-lg bg-surface-hover/50 border border-border text-muted-foreground space-y-1">
-          <p className="font-semibold text-foreground">HDFC Bank Corporate Account</p>
-          <p>A/C No: 50200019283746 • IFSC: HDFC0000123</p>
-          <p>Branch: BKC Branch, Mumbai</p>
-          <p>UPI ID: acmesoftware@hdfcbank</p>
-        </div>
+    <div className="flex flex-col sm:flex-row justify-between gap-6 border-t border-slate-200 pt-6 text-xs">
+      <div className="flex-1">
+        {showPaymentDetails && <DocumentPaymentSection />}
       </div>
 
-      <div className="w-full sm:w-80 space-y-2 text-right">
-        <div className="flex justify-between text-muted-foreground">
-          <span>Subtotal:</span>
-          <CurrencyDisplay amount={subtotal} className="font-medium text-foreground" />
+      <div className="w-full sm:w-80 space-y-2.5 text-right font-mono">
+        <div className="flex justify-between text-slate-600">
+          <span className="font-sans text-slate-500">Subtotal:</span>
+          <CurrencyDisplay amount={subtotal} className="font-semibold text-slate-800" />
         </div>
 
         {discountTotal > 0 && (
           <div className="flex justify-between text-emerald-600">
-            <span>Discount:</span>
+            <span className="font-sans text-emerald-700">Discount Total:</span>
             <span>- <CurrencyDisplay amount={discountTotal} /></span>
           </div>
         )}
 
-        <div className="flex justify-between text-muted-foreground">
-          <span>GST / Tax Total:</span>
-          <CurrencyDisplay amount={taxTotal} className="font-medium text-foreground" />
+        <div className="flex justify-between text-slate-600">
+          <span className="font-sans text-slate-500">Tax Total (GST):</span>
+          <CurrencyDisplay amount={taxTotal} className="font-semibold text-slate-800" />
         </div>
 
-        <div className="flex justify-between text-sm font-bold border-t border-border pt-2 text-foreground">
-          <span>Total Amount:</span>
-          <CurrencyDisplay amount={total} className="text-base text-accent" />
+        {roundOff !== 0 && (
+          <div className="flex justify-between text-slate-500">
+            <span className="font-sans text-slate-500">Round Off:</span>
+            <CurrencyDisplay amount={roundOff} />
+          </div>
+        )}
+
+        <div className="flex justify-between text-sm font-extrabold border-t border-slate-200 pt-2.5 text-slate-900">
+          <span className="font-sans">Grand Total:</span>
+          <CurrencyDisplay amount={total} className="text-base text-indigo-700" />
         </div>
 
         {amountPaid !== undefined && (
-          <div className="flex justify-between text-emerald-600 font-semibold pt-1">
-            <span>Amount Paid:</span>
+          <div className="flex justify-between text-emerald-600 font-bold pt-1">
+            <span className="font-sans text-emerald-700">Amount Paid:</span>
             <CurrencyDisplay amount={amountPaid} />
           </div>
         )}
 
         {amountDue !== undefined && (
-          <div className="flex justify-between text-red-600 font-extrabold text-sm border-t border-dashed border-border pt-2">
-            <span>Balance Due:</span>
+          <div className="flex justify-between text-red-600 font-black text-sm border-t border-dashed border-slate-200 pt-2 bg-red-50/50 p-2 rounded-lg">
+            <span className="font-sans text-red-700">Balance Due:</span>
             <CurrencyDisplay amount={amountDue} />
           </div>
         )}

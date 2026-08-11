@@ -7,7 +7,11 @@ export interface IInvoiceService {
   createInvoice(data: InvoiceCreateInput): Promise<Invoice>;
   updateInvoice(id: string, data: Partial<InvoiceCreateInput>): Promise<Invoice>;
   deleteInvoice(id: string): Promise<boolean>;
+  duplicateInvoice(id: string): Promise<Invoice>;
+  sendInvoice(id: string): Promise<Invoice>;
+  cancelInvoice(id: string): Promise<Invoice>;
   getRecentInvoices(limit?: number): Promise<Invoice[]>;
   getOutstandingInvoices(): Promise<Invoice[]>;
   getInvoicesByCustomer(customerId: string): Promise<Invoice[]>;
 }
+

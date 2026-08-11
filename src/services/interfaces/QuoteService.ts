@@ -7,5 +7,8 @@ export interface IQuoteService {
   createQuote(data: QuoteCreateInput): Promise<Quote>;
   updateQuote(id: string, data: Partial<QuoteCreateInput>): Promise<Quote>;
   deleteQuote(id: string): Promise<boolean>;
+  duplicateQuote(id: string): Promise<Quote>;
+  sendQuote(id: string): Promise<Quote>;
   convertToInvoice(id: string): Promise<string>; // returns new invoiceId
 }
+

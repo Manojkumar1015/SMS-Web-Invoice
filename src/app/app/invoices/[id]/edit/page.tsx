@@ -1,9 +1,10 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { quoteService, customerService } from '@/services';
-import { QuoteCreateInput, DocumentItem } from '@/types/quote';
+import { useParams, useRouter } from 'next/navigation';
+import { invoiceService, customerService } from '@/services';
+import { Invoice } from '@/types/invoice';
+import { DocumentItem } from '@/types/quote';
 import { Customer } from '@/types/customer';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
@@ -13,51 +14,52 @@ import { CustomerSelector } from '@/components/domain/customer/customer-selector
 import { ItemSelector } from '@/components/domain/item/item-selector';
 import { CurrencyDisplay } from '@/components/ui/currency-display';
 import { Card, CardContent } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { DocumentPreview } from '@/components/domain/document/document-preview';
-import { calculateDocumentTotals } from '@/lib/calculations';
-import { Plus, Trash2, ArrowLeft, Save, Send, Eye } from 'lucide-react';
 import { LoadingState } from '@/components/ui/loading-state';
+import { calculateDocumentTotals } from '@/lib/calculations';
+import { Plus, Trash2, ArrowLeft, Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-function NewQuoteForm() {
+export default function EditInvoicePage() {
+  const params = useParams();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const initialCustomerId = searchParams.get('customerId') || '';
   const { toast } = useToast();
+  const invoiceId = params.id as string;
 
-  const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
-  const [quoteDate, setQuoteDate] = React.useState(new Date().toISOString().split('T')[0]);
-  const [expiryDate, setExpiryDate] = React.useState(
-    new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0]
-  );
-  const [paymentTerms, setPaymentTerms] = React.useState('Net 30 Days');
-  const [notes, setNotes] = React.useState('Thank you for considering our commercial proposal.');
-  const [terms, setTerms] = React.useState('1. Quote valid for 30 days from issuance.\n2. 18% GST applicable as per tax regulations.\n3. Payment terms as agreed.');
+  const [loading, setLoading] = React.useState(true);
   const [submitting, setSubmitting] = React.useState(false);
-  const [previewOpen, setPreviewOpen] = React.useState(false);
-
-  const [items, setItems] = React.useState<DocumentItem[]>([
-    {
-      id: `item-${Date.now()}`,
-      name: '',
-      description: '',
-      quantity: 1,
-      unit: 'hrs',
-      rate: 0,
-      discount: 0,
-      taxRate: 18,
-      amount: 0,
-    },
-  ]);
+  const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
+  const [invoiceDate, setInvoiceDate] = React.useState('');
+  const [dueDate, setDueDate] = React.useState('');
+  const [paymentTerms, setPaymentTerms] = React.useState('');
+  const [notes, setNotes] = React.useState('');
+  const [terms, setTerms] = React.useState('');
+  const [applyRoundOff, setApplyRoundOff] = React.useState(false);
+  const [items, setItems] = React.useState<DocumentItem[]>([]);
+  const [status, setStatus] = React.useState<Invoice['status']>('draft');
 
   React.useEffect(() => {
-    if (initialCustomerId) {
-      customerService.getCustomerById(initialCustomerId).then((c) => {
-        if (c) setSelectedCustomer(c);
-      });
+    async function loadInvoiceData() {
+      setLoading(true);
+      try {
+        const inv = await invoiceService.getInvoiceById(invoiceId);
+        if (!inv) return;
+        setInvoiceDate(inv.date);
+        setDueDate(inv.dueDate);
+        setPaymentTerms(inv.paymentTerms || 'Net 15 Days');
+        setNotes(inv.notes || '');
+        setTerms(inv.terms || '');
+        setItems(inv.items || []);
+        setStatus(inv.status);
+        if (inv.roundOff) setApplyRoundOff(true);
+
+        const cust = await customerService.getCustomerById(inv.customerId);
+        if (cust) setSelectedCustomer(cust);
+      } finally {
+        setLoading(false);
+      }
     }
-  }, [initialCustomerId]);
+    loadInvoiceData();
+  }, [invoiceId]);
 
   const updateItemRow = (index: number, fields: Partial<DocumentItem>) => {
     setItems((prev) => {
@@ -95,83 +97,67 @@ function NewQuoteForm() {
     setItems((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // Document Totals using isolated calculations module
-  const totals = calculateDocumentTotals(items);
+  const totals = calculateDocumentTotals(items, 0, applyRoundOff);
 
-  const buildQuoteObject = (status: 'draft' | 'sent'): QuoteCreateInput => {
-    return {
-      quoteNumber: 'QUO-PREVIEW',
-      customerId: selectedCustomer?.id || '',
-      customerName: selectedCustomer?.displayName || 'Select Customer',
-      customerEmail: selectedCustomer?.email || '',
-      customerPhone: selectedCustomer?.phone,
-      customerGstin: selectedCustomer?.gstin,
-      billingAddress: selectedCustomer?.billingAddress,
-      shippingAddress: selectedCustomer?.shippingAddress,
-      date: quoteDate,
-      expiryDate,
-      paymentTerms,
-      items,
-      subtotal: totals.subtotal,
-      discountTotal: totals.discountTotal,
-      taxTotal: totals.taxTotal,
-      total: totals.grandTotal,
-      notes,
-      terms,
-      status,
-    };
-  };
-
-  const handleSave = async (status: 'draft' | 'sent') => {
+  const handleUpdate = async () => {
     if (!selectedCustomer) {
-      toast({ title: 'Customer Required', description: 'Please select a customer for this quotation.', variant: 'destructive' });
-      return;
-    }
-
-    if (items.some((i) => !i.name.trim())) {
-      toast({ title: 'Line Item Required', description: 'Please specify title/description for all line items.', variant: 'destructive' });
+      toast({ title: 'Customer Required', description: 'Please select a customer.', variant: 'destructive' });
       return;
     }
 
     setSubmitting(true);
     try {
-      const input = buildQuoteObject(status);
-      const created = await quoteService.createQuote(input);
-      toast({
-        title: status === 'draft' ? 'Quote Saved as Draft' : 'Quote Created & Sent',
-        description: `Quote ${created.quoteNumber} created successfully.`,
-        variant: 'success',
+      await invoiceService.updateInvoice(invoiceId, {
+        customerId: selectedCustomer.id,
+        customerName: selectedCustomer.displayName,
+        customerEmail: selectedCustomer.email,
+        customerPhone: selectedCustomer.phone,
+        customerGstin: selectedCustomer.gstin,
+        billingAddress: selectedCustomer.billingAddress,
+        shippingAddress: selectedCustomer.shippingAddress,
+        date: invoiceDate,
+        dueDate,
+        paymentTerms,
+        items,
+        subtotal: totals.subtotal,
+        discountTotal: totals.discountTotal,
+        taxTotal: totals.taxTotal,
+        roundOff: totals.roundOff,
+        total: totals.grandTotal,
+        notes,
+        terms,
+        status,
       });
-      router.push(`/app/quotes/${created.id}`);
+
+      toast({ title: 'Invoice Updated', description: 'Changes saved successfully.', variant: 'success' });
+      router.push(`/app/invoices/${invoiceId}`);
     } catch {
-      toast({ title: 'Error', description: 'Could not save quotation.', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Could not update invoice.', variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }
   };
 
+  if (loading) {
+    return <LoadingState message="Loading invoice editor..." />;
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Create Quote"
-        subtitle="Build a professional price quote with itemized pricing, taxes, and customer terms."
+        title="Edit Invoice"
+        subtitle="Update invoice details"
         breadcrumbs={[
-          { label: 'Quotes', href: '/app/quotes' },
-          { label: 'Create Quote' },
+          { label: 'Invoices', href: '/app/invoices' },
+          { label: 'Edit Invoice' },
         ]}
         actions={
           <div className="flex items-center space-x-2">
-            <Button variant="outline" size="sm" onClick={() => router.push('/app/quotes')}>
+            <Button variant="outline" size="sm" onClick={() => router.push(`/app/invoices/${invoiceId}`)}>
               <ArrowLeft className="h-4 w-4 mr-1" /> Cancel
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setPreviewOpen(true)}>
-              <Eye className="h-4 w-4 mr-1 text-slate-600" /> Preview
-            </Button>
-            <Button variant="outline" size="sm" disabled={submitting} onClick={() => handleSave('draft')}>
-              <Save className="h-4 w-4 mr-1 text-slate-600" /> Save Draft
-            </Button>
-            <Button size="sm" disabled={submitting} onClick={() => handleSave('sent')} className="bg-indigo-600 hover:bg-indigo-700 text-white">
-              <Send className="h-4 w-4 mr-1" /> Save & Send
+            <Button size="sm" disabled={submitting} onClick={handleUpdate} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold">
+              <Save className="h-4 w-4 mr-1" /> Update Invoice
             </Button>
           </div>
         }
@@ -179,58 +165,34 @@ function NewQuoteForm() {
 
       <Card className="border-slate-200 shadow-sm">
         <CardContent className="p-6 space-y-6">
-          {/* Customer Selection */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Customer Details</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-bold text-slate-700 mb-1 block">Customer *</label>
-                <CustomerSelector
-                  value={selectedCustomer?.id}
-                  onChange={(c) => setSelectedCustomer(c)}
-                />
-              </div>
-
-              {selectedCustomer && (
-                <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs space-y-1">
-                  <p className="font-bold text-slate-900">{selectedCustomer.displayName}</p>
-                  <p className="text-slate-600">{selectedCustomer.email} • {selectedCustomer.phone}</p>
-                  {selectedCustomer.billingAddress && (
-                    <p className="text-slate-500 text-[11px]">
-                      Billing: {selectedCustomer.billingAddress.street}, {selectedCustomer.billingAddress.city} {selectedCustomer.billingAddress.postalCode}
-                    </p>
-                  )}
-                </div>
-              )}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-bold text-slate-700 mb-1 block">Customer *</label>
+              <CustomerSelector
+                value={selectedCustomer?.id}
+                onChange={(c) => setSelectedCustomer(c)}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-700 mb-1 block">Payment Terms</label>
+              <Input value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} className="h-9 text-xs" />
             </div>
           </div>
 
-          {/* Quote Dates & Terms */}
-          <div className="space-y-3 border-t border-slate-200 pt-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Quote Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="text-xs font-bold text-slate-700 mb-1 block">Quote Date *</label>
-                <Input type="date" value={quoteDate} onChange={(e) => setQuoteDate(e.target.value)} className="h-9 text-xs" />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-slate-700 mb-1 block">Expiry Date *</label>
-                <Input type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} className="h-9 text-xs" />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-slate-700 mb-1 block">Payment Terms</label>
-                <Input value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} placeholder="e.g. Net 30 Days" className="h-9 text-xs" />
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-200 pt-4">
+            <div>
+              <label className="text-xs font-bold text-slate-700 mb-1 block">Invoice Date *</label>
+              <Input type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} className="h-9 text-xs" />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-700 mb-1 block">Due Date *</label>
+              <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="h-9 text-xs" />
             </div>
           </div>
 
           {/* Editable Line Items */}
           <div className="space-y-3 border-t border-slate-200 pt-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Quote Items</h3>
-              <span className="text-xs text-slate-400 font-mono">Currency: INR (₹)</span>
-            </div>
-
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Invoice Items</h3>
             <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-100/80 text-slate-600 uppercase text-[10px] font-bold border-b border-slate-200">
@@ -266,13 +228,13 @@ function NewQuoteForm() {
                         <Input
                           value={row.name}
                           onChange={(e) => updateItemRow(index, { name: e.target.value })}
-                          placeholder="Item or Service Title"
+                          placeholder="Item Name"
                           className="h-8 text-xs font-semibold"
                         />
                         <Input
                           value={row.description || ''}
                           onChange={(e) => updateItemRow(index, { description: e.target.value })}
-                          placeholder="Line item description / scope..."
+                          placeholder="Description..."
                           className="h-7 text-[11px] text-slate-500"
                         />
                       </td>
@@ -335,7 +297,6 @@ function NewQuoteForm() {
             </Button>
           </div>
 
-          {/* Notes & Totals Breakdown */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-200">
             <div className="space-y-4">
               <div>
@@ -345,6 +306,19 @@ function NewQuoteForm() {
               <div>
                 <label className="text-xs font-bold text-slate-700 mb-1 block">Terms & Conditions</label>
                 <Textarea value={terms} onChange={(e) => setTerms(e.target.value)} rows={3} className="text-xs" />
+              </div>
+
+              <div className="flex items-center space-x-2 pt-2">
+                <input
+                  type="checkbox"
+                  id="roundOffEdit"
+                  checked={applyRoundOff}
+                  onChange={(e) => setApplyRoundOff(e.target.checked)}
+                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <label htmlFor="roundOffEdit" className="text-xs font-semibold text-slate-700">
+                  Round Off Grand Total
+                </label>
               </div>
             </div>
 
@@ -361,6 +335,12 @@ function NewQuoteForm() {
                 <span className="font-sans text-slate-500">Tax Total (GST):</span>
                 <CurrencyDisplay amount={totals.taxTotal} className="font-semibold text-slate-900" />
               </div>
+              {applyRoundOff && (
+                <div className="flex justify-between text-slate-500">
+                  <span className="font-sans text-slate-500">Round Off:</span>
+                  <CurrencyDisplay amount={totals.roundOff} />
+                </div>
+              )}
               <div className="flex justify-between text-sm font-extrabold border-t border-slate-200 pt-2 text-slate-900">
                 <span className="font-sans">Grand Total:</span>
                 <CurrencyDisplay amount={totals.grandTotal} className="text-base text-indigo-700" />
@@ -369,35 +349,6 @@ function NewQuoteForm() {
           </div>
         </CardContent>
       </Card>
-
-      {/* Printable Preview Dialog */}
-      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-6">
-          <DialogHeader>
-            <DialogTitle>Quote Preview</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <DocumentPreview
-              documentType="Quote"
-              documentData={buildQuoteObject('draft') as any}
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setPreviewOpen(false)}>
-              Close Preview
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
-
-export default function NewQuotePage() {
-  return (
-    <React.Suspense fallback={<LoadingState message="Loading quote builder..." />}>
-      <NewQuoteForm />
-    </React.Suspense>
-  );
-}
-

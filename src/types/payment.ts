@@ -1,4 +1,4 @@
-export type PaymentMethod = 'bank_transfer' | 'credit_card' | 'upi' | 'cash' | 'cheque';
+export type PaymentMethod = 'bank_transfer' | 'credit_card' | 'upi' | 'cash' | 'cheque' | 'other';
 
 export interface Payment {
   id: string;
@@ -16,3 +16,4 @@ export interface Payment {
 }
 
 export type PaymentCreateInput = Omit<Payment, 'id' | 'paymentNumber' | 'createdAt'>;
+

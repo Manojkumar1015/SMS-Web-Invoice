@@ -1,4 +1,11 @@
-export type QuoteStatus = 'draft' | 'sent' | 'accepted' | 'declined' | 'expired';
+export type QuoteStatus =
+  | 'draft'
+  | 'sent'
+  | 'viewed'
+  | 'accepted'
+  | 'declined'
+  | 'expired'
+  | 'converted';
 
 export interface DocumentItem {
   id: string;
@@ -8,9 +15,18 @@ export interface DocumentItem {
   quantity: number;
   unit: string;
   rate: number;
-  discount: number; // rate discount amount or percentage
+  discount: number; // rate discount amount
   taxRate: number; // tax percentage e.g. 18
   amount: number; // computed line total
+}
+
+export interface QuoteActivity {
+  id: string;
+  title: string;
+  description: string;
+  timestamp: string;
+  actor?: string;
+  type: 'created' | 'sent' | 'viewed' | 'accepted' | 'declined' | 'converted' | 'updated';
 }
 
 export interface Quote {
@@ -19,8 +35,25 @@ export interface Quote {
   customerId: string;
   customerName: string;
   customerEmail: string;
+  customerPhone?: string;
+  customerGstin?: string;
+  billingAddress?: {
+    street?: string;
+    city?: string;
+    state?: string;
+    postalCode?: string;
+    country?: string;
+  };
+  shippingAddress?: {
+    street?: string;
+    city?: string;
+    state?: string;
+    postalCode?: string;
+    country?: string;
+  };
   date: string;
   expiryDate: string;
+  paymentTerms?: string;
   items: DocumentItem[];
   subtotal: number;
   discountTotal: number;
@@ -29,8 +62,11 @@ export interface Quote {
   notes?: string;
   terms?: string;
   status: QuoteStatus;
+  activities?: QuoteActivity[];
+  convertedInvoiceId?: string;
   createdAt: string;
   updatedAt: string;
 }
 
 export type QuoteCreateInput = Omit<Quote, 'id' | 'createdAt' | 'updatedAt'>;
+

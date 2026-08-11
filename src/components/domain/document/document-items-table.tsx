@@ -10,36 +10,40 @@ interface DocumentItemsTableProps {
 
 export function DocumentItemsTable({ items }: DocumentItemsTableProps) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-border bg-surface mb-6">
+    <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white mb-6">
       <table className="w-full text-left text-xs">
-        <thead className="bg-surface-hover text-muted-foreground uppercase text-[10px] font-semibold tracking-wider border-b border-border">
+        <thead className="bg-slate-100/80 text-slate-600 uppercase text-[10px] font-bold tracking-wider border-b border-slate-200">
           <tr>
-            <th className="px-4 py-3">#</th>
+            <th className="px-4 py-3 w-10 text-center">#</th>
             <th className="px-4 py-3">Item / Service Description</th>
             <th className="px-4 py-3 text-right">Qty</th>
             <th className="px-4 py-3 text-right">Rate</th>
-            <th className="px-4 py-3 text-right">Tax</th>
+            <th className="px-4 py-3 text-right">Discount</th>
+            <th className="px-4 py-3 text-right">Tax (%)</th>
             <th className="px-4 py-3 text-right">Amount</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-border">
+        <tbody className="divide-y divide-slate-100">
           {items.map((item, index) => (
-            <tr key={item.id || index} className="hover:bg-surface-hover/30">
-              <td className="px-4 py-3 font-mono text-muted-foreground">{index + 1}</td>
+            <tr key={item.id || index} className="hover:bg-slate-50/50">
+              <td className="px-4 py-3 text-center font-mono text-slate-400">{index + 1}</td>
               <td className="px-4 py-3">
-                <div className="font-semibold text-foreground">{item.name}</div>
+                <div className="font-bold text-slate-900">{item.name}</div>
                 {item.description && (
-                  <div className="text-[11px] text-muted-foreground mt-0.5">{item.description}</div>
+                  <div className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">{item.description}</div>
                 )}
               </td>
-              <td className="px-4 py-3 text-right font-medium">
+              <td className="px-4 py-3 text-right font-medium text-slate-800 whitespace-nowrap">
                 {item.quantity} {item.unit}
               </td>
-              <td className="px-4 py-3 text-right font-mono">
+              <td className="px-4 py-3 text-right font-mono text-slate-700 whitespace-nowrap">
                 <CurrencyDisplay amount={item.rate} />
               </td>
-              <td className="px-4 py-3 text-right text-muted-foreground">{item.taxRate}%</td>
-              <td className="px-4 py-3 text-right font-bold text-foreground">
+              <td className="px-4 py-3 text-right text-emerald-600 font-mono whitespace-nowrap">
+                {item.discount > 0 ? `- ₹${item.discount.toLocaleString('en-IN')}` : '-'}
+              </td>
+              <td className="px-4 py-3 text-right text-slate-500 font-mono whitespace-nowrap">{item.taxRate}%</td>
+              <td className="px-4 py-3 text-right font-extrabold text-slate-900 font-mono whitespace-nowrap">
                 <CurrencyDisplay amount={item.amount} />
               </td>
             </tr>
