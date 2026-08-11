@@ -56,13 +56,13 @@ export default function CustomerDetailPage() {
       const [invList, quoList, payList, expList] = await Promise.all([
         invoiceService.getInvoicesByCustomer(customerId),
         quoteService.getQuotes({ customerId }),
-        paymentService.getPaymentsByCustomer(customerId),
-        expenseService.getExpensesByCustomer(customerId),
+        paymentService.getPayments({ customerId }),
+        expenseService.getCustomerExpenses(customerId),
       ]);
 
       setInvoices(invList);
       setQuotes(quoList.data);
-      setPayments(payList);
+      setPayments(payList.data);
       setExpenses(expList);
     } finally {
       setLoading(false);
@@ -214,13 +214,41 @@ export default function CustomerDetailPage() {
         </TabsContent>
 
         {/* Payments Tab */}
-        <TabsContent value="payments" className="pt-4">
-          <DataTable columns={paymentColumns} data={payments} keyExtractor={(p) => p.id} />
+        <TabsContent value="payments" className="pt-4 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+            <div className="p-3.5 rounded-xl border border-slate-200 bg-white space-y-0.5">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Paid by Customer</span>
+              <CurrencyDisplay amount={payments.reduce((acc, p) => acc + p.amount, 0)} className="text-base font-extrabold text-emerald-600 font-mono" />
+            </div>
+            <div className="p-3.5 rounded-xl border border-slate-200 bg-white space-y-0.5">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Payments Count</span>
+              <span className="text-base font-extrabold text-slate-900 font-mono block">{payments.length} Cleared Receipts</span>
+            </div>
+            <div className="p-3.5 rounded-xl border border-slate-200 bg-white space-y-0.5">
+              <span className="text-[10px] font-bold text-red-600 uppercase tracking-wider block">Outstanding Balance</span>
+              <CurrencyDisplay amount={customer.totalInvoiced - customer.paid} className="text-base font-extrabold text-red-600 font-mono" />
+            </div>
+          </div>
+          <DataTable columns={paymentColumns} data={payments} keyExtractor={(p) => p.id} emptyMessage="No payment records found for this customer." />
         </TabsContent>
 
         {/* Expenses Tab */}
-        <TabsContent value="expenses" className="pt-4">
-          <DataTable columns={expenseColumns} data={expenses} keyExtractor={(e) => e.id} />
+        <TabsContent value="expenses" className="pt-4 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+            <div className="p-3.5 rounded-xl border border-slate-200 bg-white space-y-0.5">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Expenses Logged</span>
+              <CurrencyDisplay amount={expenses.reduce((acc, e) => acc + (e.totalAmount || e.amount), 0)} className="text-base font-extrabold text-slate-900 font-mono" />
+            </div>
+            <div className="p-3.5 rounded-xl border border-slate-200 bg-white space-y-0.5">
+              <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">Billable to Customer</span>
+              <CurrencyDisplay amount={expenses.filter(e => e.billable).reduce((acc, e) => acc + (e.totalAmount || e.amount), 0)} className="text-base font-extrabold text-emerald-600 font-mono" />
+            </div>
+            <div className="p-3.5 rounded-xl border border-slate-200 bg-white space-y-0.5">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Non-Billable Overhead</span>
+              <CurrencyDisplay amount={expenses.filter(e => !e.billable).reduce((acc, e) => acc + (e.totalAmount || e.amount), 0)} className="text-base font-extrabold text-slate-700 font-mono" />
+            </div>
+          </div>
+          <DataTable columns={expenseColumns} data={expenses} keyExtractor={(e) => e.id} emptyMessage="No expense entries logged for this customer." />
         </TabsContent>
 
         {/* Activity History Tab */}
