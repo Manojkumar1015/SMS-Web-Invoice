@@ -213,7 +213,13 @@ export function TopNav({
               Account Settings
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-red-600 font-medium">
+            <DropdownMenuItem
+              onClick={async () => {
+                const { signOutAction } = await import('@/app/(auth)/actions');
+                await signOutAction();
+              }}
+              className="text-red-600 font-medium cursor-pointer"
+            >
               <LogOut className="h-4 w-4 mr-2" />
               Sign Out
             </DropdownMenuItem>

@@ -6,16 +6,44 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
-import { ArrowRight, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Lock, AlertCircle } from 'lucide-react';
+import { loginAction } from '../actions';
+import { useToast } from '@/hooks/use-toast';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [email, setEmail] = React.useState('admin@company.com');
   const [password, setPassword] = React.useState('password123');
+  const [submitting, setSubmitting] = React.useState(false);
+  const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    router.push('/app/home');
+    setSubmitting(true);
+    setErrorMsg(null);
+
+    const formData = new FormData();
+    formData.append('email', email);
+    formData.append('password', password);
+
+    try {
+      const res = await loginAction(formData);
+      if (res.success) {
+        toast({ title: 'Authentication Successful', description: 'Signed in to dashboard.', variant: 'success' });
+        router.push('/app/home');
+        router.refresh();
+      } else {
+        const msg = res.error || 'Invalid login credentials.';
+        setErrorMsg(msg);
+        toast({ title: 'Authentication Failed', description: msg, variant: 'destructive' });
+      }
+    } catch {
+      setErrorMsg('An unexpected connection error occurred.');
+      toast({ title: 'Error', description: 'Could not connect to authentication service.', variant: 'destructive' });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -32,10 +60,17 @@ export default function LoginPage() {
         <Card className="bg-slate-900 border-slate-800 text-white shadow-2xl">
           <CardHeader>
             <CardTitle className="text-base text-white">Sign In to Dashboard</CardTitle>
-            <CardDescription className="text-slate-400">UI-Only Auth Mode. Click Sign In to enter demo portal.</CardDescription>
+            <CardDescription className="text-slate-400">Enter your organization credentials to access the portal.</CardDescription>
           </CardHeader>
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-4">
+              {errorMsg && (
+                <div className="p-3 rounded-lg bg-red-950/80 border border-red-800 text-red-300 text-xs flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 shrink-0 text-red-400" />
+                  <span>{errorMsg}</span>
+                </div>
+              )}
+
               <div>
                 <label className="text-xs font-semibold text-slate-300 mb-1 block">Work Email</label>
                 <Input
@@ -58,8 +93,8 @@ export default function LoginPage() {
               </div>
             </CardContent>
             <CardFooter className="flex flex-col space-y-3 pt-2">
-              <Button type="submit" variant="accent" className="w-full h-10 text-xs font-bold">
-                Sign In to Dashboard <ArrowRight className="h-4 w-4 ml-1.5" />
+              <Button type="submit" disabled={submitting} variant="accent" className="w-full h-10 text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white">
+                {submitting ? 'Authenticating...' : 'Sign In to Dashboard'} <ArrowRight className="h-4 w-4 ml-1.5" />
               </Button>
               <div className="text-center text-xs text-slate-400">
                 Don&apos;t have an account?{' '}

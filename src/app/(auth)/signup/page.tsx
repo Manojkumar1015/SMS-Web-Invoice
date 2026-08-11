@@ -6,14 +6,51 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, AlertCircle } from 'lucide-react';
+import { signupAction } from '../actions';
+import { useToast } from '@/hooks/use-toast';
 
 export default function SignupPage() {
   const router = useRouter();
+  const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [companyName, setCompanyName] = React.useState('');
+  const [email, setEmail] = React.useState('');
+  const [password, setPassword] = React.useState('');
+  const [submitting, setSubmitting] = React.useState(false);
+  const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    router.push('/app/home');
+    setSubmitting(true);
+    setErrorMsg(null);
+
+    const formData = new FormData();
+    formData.append('companyName', companyName);
+    formData.append('email', email);
+    formData.append('password', password);
+
+    try {
+      const res = await signupAction(formData);
+      if (res.success) {
+        toast({
+          title: 'Organization Account Created',
+          description: 'Welcome to SMS Billing SaaS! Setting up your workspace.',
+          variant: 'success',
+        });
+        router.push('/app/home');
+        router.refresh();
+      } else {
+        const msg = res.error || 'Failed to create account.';
+        setErrorMsg(msg);
+        toast({ title: 'Registration Error', description: msg, variant: 'destructive' });
+      }
+    } catch {
+      setErrorMsg('An unexpected error occurred during account creation.');
+      toast({ title: 'Error', description: 'Could not connect to service.', variant: 'destructive' });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -30,26 +67,53 @@ export default function SignupPage() {
         <Card className="bg-slate-900 border-slate-800 text-white shadow-2xl">
           <CardHeader>
             <CardTitle className="text-base text-white">Create Organization Account</CardTitle>
-            <CardDescription className="text-slate-400">UI-Only Auth Mode. Enter organization details.</CardDescription>
+            <CardDescription className="text-slate-400">Setup your company account and primary administrator profile.</CardDescription>
           </CardHeader>
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-4">
+              {errorMsg && (
+                <div className="p-3 rounded-lg bg-red-950/80 border border-red-800 text-red-300 text-xs flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 shrink-0 text-red-400" />
+                  <span>{errorMsg}</span>
+                </div>
+              )}
+
               <div>
                 <label className="text-xs font-semibold text-slate-300 mb-1 block">Company Name</label>
-                <Input placeholder="Acme Systems Ltd" className="bg-slate-950 border-slate-800 text-white" required />
+                <Input
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  placeholder="Acme Systems Ltd"
+                  className="bg-slate-950 border-slate-800 text-white"
+                  required
+                />
               </div>
               <div>
                 <label className="text-xs font-semibold text-slate-300 mb-1 block">Work Email</label>
-                <Input type="email" placeholder="admin@company.com" className="bg-slate-950 border-slate-800 text-white" required />
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="admin@company.com"
+                  className="bg-slate-950 border-slate-800 text-white"
+                  required
+                />
               </div>
               <div>
                 <label className="text-xs font-semibold text-slate-300 mb-1 block">Password</label>
-                <Input type="password" placeholder="••••••••" className="bg-slate-950 border-slate-800 text-white" required />
+                <Input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Minimum 8 characters"
+                  className="bg-slate-950 border-slate-800 text-white"
+                  required
+                />
               </div>
             </CardContent>
             <CardFooter className="flex flex-col space-y-3 pt-2">
-              <Button type="submit" variant="accent" className="w-full h-10 text-xs font-bold">
-                Get Started <ArrowRight className="h-4 w-4 ml-1.5" />
+              <Button type="submit" disabled={submitting} variant="accent" className="w-full h-10 text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white">
+                {submitting ? 'Setting Up Account...' : 'Get Started'} <ArrowRight className="h-4 w-4 ml-1.5" />
               </Button>
               <div className="text-center text-xs text-slate-400">
                 Already have an account?{' '}

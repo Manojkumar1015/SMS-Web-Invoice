@@ -16,9 +16,9 @@ import { MockPaymentService } from './mock/MockPaymentService';
 import { MockExpenseService } from './mock/MockExpenseService';
 import { MockReportService, MockGlobalSearchService } from './mock/MockReportService';
 import { MockTemplateService } from './mock/MockTemplateService';
-import { MockSettingsService } from './mock/MockSettingsService';
+import { SupabaseSettingsService } from './supabase/SupabaseSettingsService';
 
-// Central Service Registry (Currently bound to Mock implementations)
+// Central Service Registry
 export const customerService: ICustomerService = new MockCustomerService();
 export const itemService: IItemService = new MockItemService();
 export const quoteService: IQuoteService = new MockQuoteService();
@@ -28,4 +28,4 @@ export const expenseService: IExpenseService = new MockExpenseService();
 export const reportService: IReportService = new MockReportService();
 export const globalSearchService: IGlobalSearchService = new MockGlobalSearchService();
 export const templateService: ITemplateService = new MockTemplateService();
-export const settingsService: ISettingsService = new MockSettingsService();
+export const settingsService: ISettingsService = new SupabaseSettingsService();
