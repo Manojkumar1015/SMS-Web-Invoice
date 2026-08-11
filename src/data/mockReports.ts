@@ -14,12 +14,12 @@ export const mockDashboardMetrics: DashboardMetrics = {
 };
 
 export const mockRevenueChartData: RevenueChartPoint[] = [
-  { date: 'Sep 2025', revenue: 180000, expenses: 22000, netProfit: 158000 },
-  { date: 'Oct 2025', revenue: 240000, expenses: 31000, netProfit: 209000 },
-  { date: 'Nov 2025', revenue: 310000, expenses: 28000, netProfit: 282000 },
-  { date: 'Dec 2025', revenue: 290000, expenses: 35000, netProfit: 255000 },
-  { date: 'Jan 2026', revenue: 390000, expenses: 44000, netProfit: 346000 },
-  { date: 'Feb 2026', revenue: 380000, expenses: 39000, netProfit: 341000 },
+  { date: 'Sep 2025', revenue: 180000, payments: 160000, expenses: 22000, netProfit: 158000 },
+  { date: 'Oct 2025', revenue: 240000, payments: 210000, expenses: 31000, netProfit: 209000 },
+  { date: 'Nov 2025', revenue: 310000, payments: 290000, expenses: 28000, netProfit: 282000 },
+  { date: 'Dec 2025', revenue: 290000, payments: 270000, expenses: 35000, netProfit: 255000 },
+  { date: 'Jan 2026', revenue: 390000, payments: 350000, expenses: 44000, netProfit: 346000 },
+  { date: 'Feb 2026', revenue: 380000, payments: 340000, expenses: 390000, netProfit: 341000 },
 ];
 
 export const mockExpenseCategories: ExpenseCategoryBreakdown[] = [

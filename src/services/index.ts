@@ -5,6 +5,8 @@ import { IInvoiceService } from './interfaces/InvoiceService';
 import { IPaymentService } from './interfaces/PaymentService';
 import { IExpenseService } from './interfaces/ExpenseService';
 import { IReportService, IGlobalSearchService } from './interfaces/ReportService';
+import { ITemplateService } from './interfaces/TemplateService';
+import { ISettingsService } from './interfaces/SettingsService';
 
 import { MockCustomerService } from './mock/MockCustomerService';
 import { MockItemService } from './mock/MockItemService';
@@ -13,9 +15,8 @@ import { MockInvoiceService } from './mock/MockInvoiceService';
 import { MockPaymentService } from './mock/MockPaymentService';
 import { MockExpenseService } from './mock/MockExpenseService';
 import { MockReportService, MockGlobalSearchService } from './mock/MockReportService';
-
-import { ITemplateService } from './interfaces/TemplateService';
 import { MockTemplateService } from './mock/MockTemplateService';
+import { MockSettingsService } from './mock/MockSettingsService';
 
 // Central Service Registry (Currently bound to Mock implementations)
 export const customerService: ICustomerService = new MockCustomerService();
@@ -27,4 +28,4 @@ export const expenseService: IExpenseService = new MockExpenseService();
 export const reportService: IReportService = new MockReportService();
 export const globalSearchService: IGlobalSearchService = new MockGlobalSearchService();
 export const templateService: ITemplateService = new MockTemplateService();
-
+export const settingsService: ISettingsService = new MockSettingsService();
