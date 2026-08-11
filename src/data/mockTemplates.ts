@@ -1,0 +1,43 @@
+import { InvoiceTemplate } from '@/types/template';
+
+export const mockTemplates: InvoiceTemplate[] = [
+  {
+    id: 'tmpl-1',
+    name: 'Modern Corporate Slate',
+    description: 'Sleek dark header, compact item grids and prominent total breakdown.',
+    themeColor: '#0f172a',
+    fontFamily: 'Inter',
+    logoPosition: 'left',
+    isDefault: true,
+    showGstin: true,
+    showTerms: true,
+    showBankDetails: true,
+    footerText: 'Thank you for choosing Acme Systems. For queries, contact billing@company.com',
+  },
+  {
+    id: 'tmpl-2',
+    name: 'Indigo Minimalist Executive',
+    description: 'Clean borderless aesthetic with vibrant indigo accents for modern SaaS invoices.',
+    themeColor: '#4f46e5',
+    fontFamily: 'Roboto',
+    logoPosition: 'right',
+    isDefault: false,
+    showGstin: true,
+    showTerms: true,
+    showBankDetails: true,
+    footerText: 'Payment due per agreed terms. Please include Invoice Number in transfer memo.',
+  },
+  {
+    id: 'tmpl-3',
+    name: 'Classic Financial Clean',
+    description: 'Traditional layout optimized for GST compliance and multi-line HSN items.',
+    themeColor: '#1e293b',
+    fontFamily: 'Inter',
+    logoPosition: 'center',
+    isDefault: false,
+    showGstin: true,
+    showTerms: true,
+    showBankDetails: true,
+    footerText: 'This is a computer-generated invoice and requires no physical signature.',
+  },
+];
