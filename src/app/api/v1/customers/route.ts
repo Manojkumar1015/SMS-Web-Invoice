@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
 
     const search = searchParams.get('search') || undefined;
     const isActiveParam = searchParams.get('is_active');
-    const isActive = isActiveParam === 'false' ? false : true;
+    const isActive = isActiveParam === 'true' ? true : isActiveParam === 'false' ? false : undefined;
 
     const { page, pageSize } = validatePaginationParams({
       page: searchParams.get('page') || undefined,
