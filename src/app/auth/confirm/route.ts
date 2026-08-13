@@ -29,18 +29,19 @@ async function ensureUserOrganization(supabase: ReturnType<typeof createClient>)
       const companyName =
         user.user_metadata?.company_name || `${user.email?.split('@')[0] || 'My'} Company`;
 
-      const { data: org } = await (supabase
+      const orgId = crypto.randomUUID();
+
+      const { error: orgErr } = await (supabase
         .from('organizations' as any) as any)
         .insert({
+          id: orgId,
           name: companyName,
           email: user.email,
-        })
-        .select('id')
-        .single();
+        });
 
-      if (org?.id) {
+      if (!orgErr) {
         await (supabase.from('organization_members' as any) as any).insert({
-          organization_id: org.id,
+          organization_id: orgId,
           user_id: user.id,
           role: 'owner',
           status: 'active',

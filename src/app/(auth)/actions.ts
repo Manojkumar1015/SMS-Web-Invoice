@@ -81,17 +81,16 @@ export async function signupAction(formData: FormData) {
       .maybeSingle();
 
     if (!existingMembership) {
-      const { data: orgData } = await (supabase.from('organizations' as any) as any)
-        .insert({
-          name: companyName,
-          email: email,
-        })
-        .select('id')
-        .single();
+      const orgId = crypto.randomUUID();
+      const { error: orgErr } = await (supabase.from('organizations' as any) as any).insert({
+        id: orgId,
+        name: companyName,
+        email: email,
+      });
 
-      if (orgData?.id) {
+      if (!orgErr) {
         await (supabase.from('organization_members' as any) as any).insert({
-          organization_id: orgData.id,
+          organization_id: orgId,
           user_id: userId,
           role: 'owner',
           status: 'active',
