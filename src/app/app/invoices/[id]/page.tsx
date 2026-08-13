@@ -128,9 +128,13 @@ export default function InvoiceDetailPage() {
             <Button variant="outline" size="sm" onClick={handleDuplicate}>
               <Copy className="h-4 w-4 mr-1" /> Duplicate
             </Button>
-            <Button variant="outline" size="sm" onClick={() => window.print()}>
-              <Printer className="h-4 w-4 mr-1" /> Print / PDF
+            <Button variant="outline" size="sm" onClick={() => window.open(`/api/v1/invoices/${invoice.id}/pdf`, '_blank')}>
+              <Download className="h-4 w-4 mr-1" /> Download PDF
             </Button>
+            <Button variant="outline" size="sm" onClick={() => window.open(`/api/v1/invoices/${invoice.id}/pdf?print=true`, '_blank')}>
+              <Printer className="h-4 w-4 mr-1" /> Print
+            </Button>
+
             <Button variant="outline" size="sm" onClick={handleSend}>
               <Send className="h-4 w-4 mr-1" /> Send
             </Button>

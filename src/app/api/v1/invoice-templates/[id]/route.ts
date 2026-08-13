@@ -1,9 +1,9 @@
 import { NextRequest } from 'next/server';
 import { getAuthContext } from '@/lib/api/auth-context';
 import { TemplateService } from '@/services/template/template.service';
-import { validateRequestBody } from '@/lib/api/validation';
 import { templateUpdateSchema } from '@/lib/api/templateValidation';
 import { successResponse, errorResponse } from '@/lib/api/response';
+import { ValidationError } from '@/lib/api/errors';
 
 const service = new TemplateService();
 
@@ -24,11 +24,22 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
   try {
     const context = await getAuthContext();
-    const rawBody = await request.json();
-    const validated = validateRequestBody(templateUpdateSchema, rawBody);
+    const body = await request.json();
 
-    const updated = await service.updateTemplate(context, params.id, validated as any);
-    return successResponse(updated, 200, undefined, requestId);
+    const parseResult = templateUpdateSchema.safeParse(body);
+    if (!parseResult.success) {
+      throw new ValidationError(
+        parseResult.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ')
+      );
+    }
+
+    const payload = {
+      ...parseResult.data,
+      description: parseResult.data.description || undefined,
+    };
+
+    const template = await service.updateTemplate(context, params.id, payload);
+    return successResponse(template, 200, undefined, requestId);
   } catch (error) {
     return errorResponse(error, requestId);
   }
@@ -40,7 +51,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
   try {
     const context = await getAuthContext();
     await service.deleteTemplate(context, params.id);
-    return successResponse({ deleted: true, id: params.id }, 200, undefined, requestId);
+    return successResponse({ success: true }, 200, undefined, requestId);
   } catch (error) {
     return errorResponse(error, requestId);
   }

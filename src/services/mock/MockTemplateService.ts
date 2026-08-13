@@ -1,5 +1,5 @@
 import { ITemplateService } from '../interfaces/TemplateService';
-import { InvoiceTemplate, TemplateCreateInput } from '@/types/template';
+import { InvoiceTemplate, TemplateCreateInput, TemplateConfiguration } from '@/types/template';
 import { FilterParams, PaginatedResult } from '@/types/common';
 import { mockTemplates } from '@/data/mockTemplates';
 
@@ -54,18 +54,25 @@ export class MockTemplateService implements ITemplateService {
 
   async createTemplate(data: TemplateCreateInput): Promise<InvoiceTemplate> {
     const newId = `tmpl-custom-${Date.now()}`;
+    const defaultTpl = await this.getDefaultTemplate();
     const newTemplate: InvoiceTemplate = {
-      ...data,
       id: newId,
+      name: data.name,
+      description: data.description || '',
+      category: data.category || 'gst_standard',
       isSystem: false,
+      isDefault: !!data.isDefault,
       updatedAt: new Date().toISOString(),
       config: {
-        ...data.config,
+        ...defaultTpl.config,
+        ...(data.config || {}),
         id: newId,
-        isSystem: false,
+        name: data.name,
+        isDefault: !!data.isDefault,
         updatedAt: new Date().toISOString(),
-      },
+      } as TemplateConfiguration,
     };
+
 
     if (data.isDefault) {
       this.templates.forEach((t) => {

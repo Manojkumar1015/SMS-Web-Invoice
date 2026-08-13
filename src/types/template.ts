@@ -104,7 +104,7 @@ export interface ItemsTableConfig {
 export interface TaxConfig {
   showTaxColumn: boolean;
   showTaxSummary: boolean;
-  breakdownGst: boolean; // CGST + SGST or IGST
+  breakdownGst: boolean;
   showCgstSgstIgst: boolean;
 }
 
@@ -161,8 +161,8 @@ export interface FooterConfig {
 export interface WatermarkConfig {
   enabled: boolean;
   text: 'PAID' | 'DRAFT' | 'ORIGINAL' | 'COPY' | string;
-  opacity: number; // 0 to 1
-  rotation: number; // degrees
+  opacity: number;
+  rotation: number;
   color: string;
 }
 
@@ -212,4 +212,11 @@ export interface InvoiceTemplate {
   config: TemplateConfiguration;
 }
 
-export type TemplateCreateInput = Omit<InvoiceTemplate, 'id' | 'updatedAt'>;
+export interface TemplateCreateInput {
+  name: string;
+  description?: string;
+  category?: TemplateCategory;
+  isSystem?: boolean;
+  isDefault?: boolean;
+  config?: Partial<TemplateConfiguration> | Record<string, any>;
+}
