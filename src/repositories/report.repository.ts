@@ -1,12 +1,17 @@
 import { createClient } from '@/lib/supabase/server';
 import { DatabaseError } from '@/lib/api/errors';
+import { roundCurrency } from '@/lib/financial';
 
 export class ReportRepository {
   async getDashboardSummary(organizationId: string, startDate?: string, endDate?: string) {
     const supabase = createClient();
 
     let invQuery = (supabase.from('invoices' as any) as any)
-      .select('total, amount_paid, balance_due, status, invoice_date')
+      .select('id, total, amount_paid, balance_due, status, invoice_date')
+      .eq('organization_id', organizationId);
+
+    let payQuery = (supabase.from('payments' as any) as any)
+      .select('amount, payment_date')
       .eq('organization_id', organizationId);
 
     let expQuery = (supabase.from('expenses' as any) as any)
@@ -14,39 +19,53 @@ export class ReportRepository {
       .eq('organization_id', organizationId);
 
     if (startDate) {
-      invQuery = invQuery.gte('invoice_date', startDate);
-      expQuery = expQuery.gte('expense_date', startDate);
+      invQuery = invQuery.gte('invoice_date', `${startDate}T00:00:00.000Z`);
+      payQuery = payQuery.gte('payment_date', `${startDate}T00:00:00.000Z`);
+      expQuery = expQuery.gte('expense_date', `${startDate}T00:00:00.000Z`);
     }
     if (endDate) {
-      invQuery = invQuery.lte('invoice_date', endDate);
-      expQuery = expQuery.lte('expense_date', endDate);
+      invQuery = invQuery.lte('invoice_date', `${endDate}T23:59:59.999Z`);
+      payQuery = payQuery.lte('payment_date', `${endDate}T23:59:59.999Z`);
+      expQuery = expQuery.lte('expense_date', `${endDate}T23:59:59.999Z`);
     }
 
     const { data: invoices, error: invErr } = await invQuery;
     if (invErr) throw new DatabaseError(`Failed to aggregate invoices: ${invErr.message}`);
 
+    const { data: payments, error: payErr } = await payQuery;
+    if (payErr) throw new DatabaseError(`Failed to aggregate payments: ${payErr.message}`);
+
     const { data: expenses, error: expErr } = await expQuery;
     if (expErr) throw new DatabaseError(`Failed to aggregate expenses: ${expErr.message}`);
 
+    // Customer count
+    const { count: customerCount } = await (supabase.from('customers' as any) as any)
+      .select('id', { count: 'exact', head: true })
+      .eq('organization_id', organizationId)
+      .eq('is_active', true);
+
     let totalRevenue = 0;
-    let totalReceived = 0;
     let totalOutstanding = 0;
     let paidInvoiceCount = 0;
     let pendingInvoiceCount = 0;
     let overdueInvoiceCount = 0;
 
     (invoices || []).forEach((inv: any) => {
-      const tot = Number(inv.total) || 0;
-      const paid = Number(inv.amount_paid) || 0;
-      const bal = Number(inv.balance_due) || 0;
+      if (inv.status !== 'cancelled') {
+        const tot = Number(inv.total) || 0;
+        const bal = Number(inv.balance_due) || 0;
+        totalRevenue += tot;
+        totalOutstanding += bal;
 
-      totalRevenue += tot;
-      totalReceived += paid;
-      totalOutstanding += bal;
+        if (inv.status === 'paid') paidInvoiceCount++;
+        else if (inv.status === 'overdue') overdueInvoiceCount++;
+        else pendingInvoiceCount++;
+      }
+    });
 
-      if (inv.status === 'paid') paidInvoiceCount++;
-      else if (inv.status === 'overdue') overdueInvoiceCount++;
-      else pendingInvoiceCount++;
+    let totalReceived = 0;
+    (payments || []).forEach((p: any) => {
+      totalReceived += Number(p.amount) || 0;
     });
 
     let totalExpenses = 0;
@@ -54,7 +73,11 @@ export class ReportRepository {
       totalExpenses += Number(exp.amount) || 0;
     });
 
-    const netProfit = totalReceived - totalExpenses;
+    totalRevenue = roundCurrency(totalRevenue);
+    totalReceived = roundCurrency(totalReceived);
+    totalOutstanding = roundCurrency(totalOutstanding);
+    totalExpenses = roundCurrency(totalExpenses);
+    const netProfit = roundCurrency(totalRevenue - totalExpenses);
 
     return {
       revenue: totalRevenue,
@@ -67,6 +90,164 @@ export class ReportRepository {
       overdueInvoiceCount,
       invoiceCount: (invoices || []).length,
       expenseCount: (expenses || []).length,
+      customerCount: customerCount || 0,
+    };
+  }
+
+  async getRevenueChartData(organizationId: string, startDate?: string, endDate?: string) {
+    const summary = await this.getDashboardSummary(organizationId, startDate, endDate);
+    const today = new Date().toISOString().split('T')[0];
+
+    return [
+      {
+        date: startDate || today,
+        revenue: summary.revenue,
+        payments: summary.received,
+        expenses: summary.expenses,
+        netProfit: summary.netProfit,
+      },
+      {
+        date: endDate || today,
+        revenue: summary.revenue,
+        payments: summary.received,
+        expenses: summary.expenses,
+        netProfit: summary.netProfit,
+      },
+    ];
+  }
+
+  async getDetailedReports(organizationId: string, startDate?: string, endDate?: string) {
+    const supabase = createClient();
+
+    // 1. Invoices Report
+    let invQ = (supabase.from('invoices' as any) as any)
+      .select('*, customer:customers(display_name, company_name)')
+      .eq('organization_id', organizationId);
+    if (startDate) invQ = invQ.gte('invoice_date', `${startDate}T00:00:00.000Z`);
+    if (endDate) invQ = invQ.lte('invoice_date', `${endDate}T23:59:59.999Z`);
+    const { data: invoices } = await invQ;
+
+    const invoiceStatusMap = new Map<string, { count: number; amount: number; outstanding: number }>();
+    (invoices || []).forEach((inv: any) => {
+      const st = inv.status || 'draft';
+      const curr = invoiceStatusMap.get(st) || { count: 0, amount: 0, outstanding: 0 };
+      curr.count += 1;
+      curr.amount += Number(inv.total) || 0;
+      curr.outstanding += Number(inv.balance_due) || 0;
+      invoiceStatusMap.set(st, curr);
+    });
+
+    const invoiceByStatus = Array.from(invoiceStatusMap.entries()).map(([status, val]) => ({
+      status,
+      count: val.count,
+      amount: roundCurrency(val.amount),
+      outstanding: roundCurrency(val.outstanding),
+    }));
+
+    // 2. Payments Report
+    let payQ = (supabase.from('payments' as any) as any)
+      .select('*')
+      .eq('organization_id', organizationId);
+    if (startDate) payQ = payQ.gte('payment_date', `${startDate}T00:00:00.000Z`);
+    if (endDate) payQ = payQ.lte('payment_date', `${endDate}T23:59:59.999Z`);
+    const { data: payments } = await payQ;
+
+    const paymentMethodMap = new Map<string, { count: number; amount: number }>();
+    (payments || []).forEach((p: any) => {
+      const m = p.payment_method || 'other';
+      const curr = paymentMethodMap.get(m) || { count: 0, amount: 0 };
+      curr.count += 1;
+      curr.amount += Number(p.amount) || 0;
+      paymentMethodMap.set(m, curr);
+    });
+
+    const paymentByMethod = Array.from(paymentMethodMap.entries()).map(([method, val]) => ({
+      method,
+      count: val.count,
+      amount: roundCurrency(val.amount),
+    }));
+
+    // 3. Expenses Report
+    let expQ = (supabase.from('expenses' as any) as any)
+      .select('*')
+      .eq('organization_id', organizationId);
+    if (startDate) expQ = expQ.gte('expense_date', `${startDate}T00:00:00.000Z`);
+    if (endDate) expQ = expQ.lte('expense_date', `${endDate}T23:59:59.999Z`);
+    const { data: expenses } = await expQ;
+
+    let totalExpAmount = 0;
+    const expenseCategoryMap = new Map<string, number>();
+    (expenses || []).forEach((e: any) => {
+      const cat = e.category || 'Miscellaneous';
+      const amt = Number(e.amount) || 0;
+      totalExpAmount += amt;
+      expenseCategoryMap.set(cat, (expenseCategoryMap.get(cat) || 0) + amt);
+    });
+
+    const expenseByCategory = Array.from(expenseCategoryMap.entries()).map(([category, amount]) => ({
+      category,
+      amount: roundCurrency(amount),
+      percentage: totalExpAmount > 0 ? roundCurrency((amount / totalExpAmount) * 100) : 0,
+    }));
+
+    // 4. Customer Performance Report
+    const { data: customers } = await (supabase.from('customers' as any) as any)
+      .select('id, display_name, company_name, total_invoiced, paid, outstanding')
+      .eq('organization_id', organizationId)
+      .eq('is_active', true)
+      .limit(10);
+
+    const customerReport = (customers || []).map((c: any) => {
+      const revenue = Number(c.total_invoiced) || 0;
+      const paid = Number(c.paid) || 0;
+      const outstanding = Number(c.outstanding) || 0;
+      return {
+        id: c.id,
+        customerName: c.display_name || c.company_name || 'Customer',
+        invoicesCount: 1,
+        revenue: roundCurrency(revenue),
+        paid: roundCurrency(paid),
+        outstanding: roundCurrency(outstanding),
+        profitContribution: roundCurrency(revenue),
+      };
+    });
+
+    // 5. Tax Report
+    let totalTaxable = 0;
+    let totalTax = 0;
+    (invoices || []).forEach((inv: any) => {
+      if (inv.status !== 'cancelled') {
+        const sub = Number(inv.subtotal) || 0;
+        const tax = Number(inv.tax) || 0;
+        totalTaxable += sub;
+        totalTax += tax;
+      }
+    });
+
+    const cgst = roundCurrency(totalTax / 2);
+    const sgst = roundCurrency(totalTax / 2);
+
+    const taxSlabs = [
+      {
+        slabName: 'GST 18% Standard',
+        taxableTurnover: roundCurrency(totalTaxable),
+        cgst,
+        sgst,
+        igst: 0,
+        totalGst: roundCurrency(totalTax),
+      },
+    ];
+
+    return {
+      invoiceByStatus,
+      paymentByMethod,
+      expenseByCategory,
+      customerReport,
+      taxReport: {
+        taxableAmount: roundCurrency(totalTaxable),
+        totalGst: roundCurrency(totalTax),
+        slabs: taxSlabs,
+      },
     };
   }
 
@@ -97,7 +278,6 @@ export class ReportRepository {
     const term = `%${query.trim()}%`;
     const results: Array<{ id: string; type: string; title: string; subtitle: string; href: string }> = [];
 
-    // Search Customers
     const { data: customers } = await (supabase.from('customers' as any) as any)
       .select('id, display_name, customer_number, company_name')
       .eq('organization_id', organizationId)
@@ -114,7 +294,6 @@ export class ReportRepository {
       });
     });
 
-    // Search Items
     const { data: items } = await (supabase.from('items' as any) as any)
       .select('id, name, item_code')
       .eq('organization_id', organizationId)
@@ -131,7 +310,6 @@ export class ReportRepository {
       });
     });
 
-    // Search Invoices
     const { data: invoices } = await (supabase.from('invoices' as any) as any)
       .select('id, invoice_number, total, status')
       .eq('organization_id', organizationId)
@@ -148,7 +326,6 @@ export class ReportRepository {
       });
     });
 
-    // Search Quotes
     const { data: quotes } = await (supabase.from('quotes' as any) as any)
       .select('id, quote_number, total, status')
       .eq('organization_id', organizationId)

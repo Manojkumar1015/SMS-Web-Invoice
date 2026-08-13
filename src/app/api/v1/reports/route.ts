@@ -15,11 +15,15 @@ export async function GET(request: NextRequest) {
     const endDate = searchParams.get('endDate') || undefined;
 
     const summary = await service.getDashboardSummary(context, startDate, endDate);
+    const chartData = await service.getRevenueChartData(context, startDate, endDate);
+    const detailedReports = await service.getDetailedReports(context, startDate, endDate);
     const activity = await service.getRecentActivity(context);
 
     return successResponse(
       {
         summary,
+        chartData,
+        detailedReports,
         activity,
       },
       200,

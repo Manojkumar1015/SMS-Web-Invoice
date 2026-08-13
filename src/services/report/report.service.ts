@@ -8,6 +8,14 @@ export class ReportService {
     return this.repo.getDashboardSummary(context.organization.id, startDate, endDate);
   }
 
+  async getRevenueChartData(context: AuthContext, startDate?: string, endDate?: string) {
+    return this.repo.getRevenueChartData(context.organization.id, startDate, endDate);
+  }
+
+  async getDetailedReports(context: AuthContext, startDate?: string, endDate?: string) {
+    return this.repo.getDetailedReports(context.organization.id, startDate, endDate);
+  }
+
   async getRecentActivity(context: AuthContext) {
     return this.repo.getRecentActivity(context.organization.id);
   }

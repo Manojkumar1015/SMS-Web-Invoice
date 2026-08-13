@@ -59,14 +59,18 @@ import {
 } from 'recharts';
 import { formatCurrency } from '@/lib/formatters';
 
+import { getDateRangeFromPreset } from '@/lib/dateRanges';
+
 export default function ReportsPage() {
   const { toast } = useToast();
 
   // Date Filter state
+  const initialRange = getDateRangeFromPreset('this_month');
   const [preset, setPreset] = React.useState<DateRangePreset>('this_month');
-  const [startDate, setStartDate] = React.useState('2026-02-01');
-  const [endDate, setEndDate] = React.useState('2026-02-28');
+  const [startDate, setStartDate] = React.useState(initialRange.startDate);
+  const [endDate, setEndDate] = React.useState(initialRange.endDate);
   const [aggregation, setAggregation] = React.useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('monthly');
+
 
   // Report datasets
   const [metrics, setMetrics] = React.useState<DashboardMetrics | null>(null);
@@ -196,7 +200,16 @@ export default function ReportsPage() {
             ].map((p) => (
               <button
                 key={p.id}
-                onClick={() => setPreset(p.id as DateRangePreset)}
+                onClick={() => {
+                  const pId = p.id as DateRangePreset;
+                  setPreset(pId);
+                  if (pId !== 'custom') {
+                    const range = getDateRangeFromPreset(pId);
+                    setStartDate(range.startDate);
+                    setEndDate(range.endDate);
+                  }
+                }}
+
                 className={`px-2.5 py-1 text-xs rounded-lg font-semibold transition-all ${
                   preset === p.id
                     ? 'bg-indigo-600 text-white shadow-xs'
