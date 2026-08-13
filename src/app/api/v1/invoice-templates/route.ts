@@ -9,10 +9,15 @@ const service = new TemplateService();
 
 export async function GET(request: NextRequest) {
   const requestId = request.headers.get('x-request-id') || `req_${Date.now()}`;
+  const searchParams = request.nextUrl.searchParams;
 
   try {
     const context = await getAuthContext();
-    const templates = await service.listTemplates(context);
+    const search = searchParams.get('search') || undefined;
+    const status = searchParams.get('status') || undefined;
+    const category = searchParams.get('category') || undefined;
+
+    const templates = await service.listTemplates(context, { search, status, category });
 
     return successResponse(templates, 200, undefined, requestId);
   } catch (error) {

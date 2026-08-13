@@ -205,7 +205,7 @@ export function Sidebar({
                   <div className="h-3.5 w-24 bg-slate-800 animate-pulse rounded my-1" />
                 ) : (
                   <>
-                    <span className="text-xs font-medium text-slate-200 truncate">{displayName}</span>
+                    <span className="text-xs font-semibold text-slate-200 truncate">{profile?.username ? `@${profile.username}` : displayName}</span>
                     <span className="text-[10px] text-slate-400 truncate">{email}</span>
                   </>
                 )}

@@ -18,6 +18,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { CustomerSelector } from '@/components/domain/customer/customer-selector';
 import { expenseService } from '@/services';
 import { Customer } from '@/types/customer';
+import { useToast } from '@/hooks/use-toast';
 
 interface ExpenseFormDialogProps {
   open: boolean;
@@ -26,6 +27,7 @@ interface ExpenseFormDialogProps {
 }
 
 export function ExpenseFormDialog({ open, onOpenChange, onSuccess }: ExpenseFormDialogProps) {
+  const { toast } = useToast();
   const [submitting, setSubmitting] = React.useState(false);
   const [expenseType, setExpenseType] = React.useState<ExpenseType>('business');
   const [category, setCategory] = React.useState<ExpenseCategory>('Software');
@@ -59,6 +61,8 @@ export function ExpenseFormDialog({ open, onOpenChange, onSuccess }: ExpenseForm
       });
       onSuccess();
       onOpenChange(false);
+    } catch (err: any) {
+      toast({ title: 'Error Saving Expense', description: err?.message || 'Could not save expense record.', variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }

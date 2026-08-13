@@ -4,6 +4,7 @@ import { DatabaseError, NotFoundError } from '@/lib/api/errors';
 export interface ItemQueryOptions {
   organizationId: string;
   search?: string;
+  type?: string;
   category?: string;
   isActive?: boolean;
   page?: number;
@@ -15,7 +16,7 @@ export interface ItemQueryOptions {
 export class ItemRepository {
   async list(options: ItemQueryOptions) {
     const supabase = createClient();
-    const { organizationId, search, category, isActive = true, page = 1, pageSize = 25, sortField = 'created_at', sortOrder = 'desc' } = options;
+    const { organizationId, search, type, category, isActive, page = 1, pageSize = 25, sortField = 'created_at', sortOrder = 'desc' } = options;
 
     let query = (supabase.from('items' as any) as any)
       .select('*', { count: 'exact' })
@@ -23,6 +24,10 @@ export class ItemRepository {
 
     if (isActive !== undefined) {
       query = query.eq('is_active', isActive);
+    }
+
+    if (type && type !== 'all') {
+      query = query.eq('type', type);
     }
 
     if (category && category !== 'all') {

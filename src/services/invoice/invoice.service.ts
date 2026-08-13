@@ -168,8 +168,14 @@ export class InvoiceService {
 
     if (input.customerId) payload.customer_id = input.customerId;
     const invDateStr = input.invoiceDate || input.date;
-    if (invDateStr) payload.invoice_date = new Date(invDateStr).toISOString();
-    if (input.dueDate) payload.due_date = new Date(input.dueDate).toISOString();
+    if (invDateStr) {
+      const d = new Date(invDateStr);
+      if (!isNaN(d.getTime())) payload.invoice_date = d.toISOString();
+    }
+    if (input.dueDate) {
+      const d = new Date(input.dueDate);
+      if (!isNaN(d.getTime())) payload.due_date = d.toISOString();
+    }
     if (input.notes !== undefined) payload.notes = input.notes;
     if (input.terms !== undefined) payload.terms = input.terms;
     if (input.templateId !== undefined) payload.template_id = input.templateId;

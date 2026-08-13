@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const [username, setUsername] = React.useState('');
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [submitting, setSubmitting] = React.useState(false);
@@ -24,6 +25,7 @@ export default function LoginPage() {
     setErrorMsg(null);
 
     const formData = new FormData();
+    formData.append('username', username);
     formData.append('email', email);
     formData.append('password', password);
 
@@ -60,7 +62,7 @@ export default function LoginPage() {
         <Card className="bg-slate-900 border-slate-800 text-white shadow-2xl">
           <CardHeader>
             <CardTitle className="text-base text-white">Sign In to Dashboard</CardTitle>
-            <CardDescription className="text-slate-400">Enter your organization credentials to access the portal.</CardDescription>
+            <CardDescription className="text-slate-400">Enter your username, email and password to sign in.</CardDescription>
           </CardHeader>
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-4">
@@ -71,6 +73,17 @@ export default function LoginPage() {
                 </div>
               )}
 
+              <div>
+                <label className="text-xs font-semibold text-slate-300 mb-1 block">Username</label>
+                <Input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="e.g. john_doe"
+                  className="bg-slate-950 border-slate-800 text-white focus:ring-indigo-500"
+                  required
+                />
+              </div>
               <div>
                 <label className="text-xs font-semibold text-slate-300 mb-1 block">Work Email</label>
                 <Input

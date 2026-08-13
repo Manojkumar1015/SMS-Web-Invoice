@@ -20,6 +20,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { customerService } from '@/services';
+import { useToast } from '@/hooks/use-toast';
 
 interface CustomerFormDialogProps {
   open: boolean;
@@ -34,6 +35,7 @@ export function CustomerFormDialog({
   customerToEdit,
   onSuccess,
 }: CustomerFormDialogProps) {
+  const { toast } = useToast();
   const [submitting, setSubmitting] = React.useState(false);
 
   const defaultValues = React.useMemo<CustomerCreateInput>(
@@ -99,6 +101,8 @@ export function CustomerFormDialog({
       }
       onSuccess(saved);
       onOpenChange(false);
+    } catch (err: any) {
+      toast({ title: 'Error Saving Customer', description: err?.message || 'Could not save customer record.', variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }

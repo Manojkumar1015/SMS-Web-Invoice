@@ -14,6 +14,7 @@ export default function SignupPage() {
   const router = useRouter();
   const { toast } = useToast();
 
+  const [username, setUsername] = React.useState('');
   const [companyName, setCompanyName] = React.useState('');
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
@@ -27,6 +28,7 @@ export default function SignupPage() {
     setErrorMsg(null);
 
     const formData = new FormData();
+    formData.append('username', username);
     formData.append('companyName', companyName);
     formData.append('email', email);
     formData.append('password', password);
@@ -120,6 +122,17 @@ export default function SignupPage() {
                 </div>
               )}
 
+              <div>
+                <label className="text-xs font-semibold text-slate-300 mb-1 block">Username</label>
+                <Input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="e.g. john_doe"
+                  className="bg-slate-950 border-slate-800 text-white"
+                  required
+                />
+              </div>
               <div>
                 <label className="text-xs font-semibold text-slate-300 mb-1 block">Company Name</label>
                 <Input

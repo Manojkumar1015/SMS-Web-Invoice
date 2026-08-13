@@ -19,6 +19,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { itemService } from '@/services';
+import { useToast } from '@/hooks/use-toast';
 
 interface ItemFormDialogProps {
   open: boolean;
@@ -33,6 +34,7 @@ export function ItemFormDialog({
   itemToEdit,
   onSuccess,
 }: ItemFormDialogProps) {
+  const { toast } = useToast();
   const [submitting, setSubmitting] = React.useState(false);
 
   const defaultValues = React.useMemo<ItemCreateInput>(
@@ -81,6 +83,8 @@ export function ItemFormDialog({
       }
       onSuccess(saved);
       onOpenChange(false);
+    } catch (err: any) {
+      toast({ title: 'Error Saving Item', description: err?.message || 'Could not save item record.', variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }

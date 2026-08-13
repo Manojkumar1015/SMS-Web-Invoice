@@ -60,8 +60,42 @@ export default function EditInvoicePage() {
         if (inv.templateId) setSelectedTemplateId(inv.templateId);
         if (inv.roundOff) setApplyRoundOff(true);
 
-        const cust = await customerService.getCustomerById(inv.customerId);
-        if (cust) setSelectedCustomer(cust);
+        const cust = await customerService.getCustomerById(inv.customerId).catch(() => null);
+        if (cust) {
+          setSelectedCustomer(cust);
+        } else if (inv.customerId || inv.customerName) {
+          setSelectedCustomer({
+            id: inv.customerId || 'cust-fallback',
+            customerType: 'business',
+            companyName: inv.customerName || 'Customer',
+            displayName: inv.customerName || 'Customer',
+            contactPerson: '',
+            email: inv.customerEmail || '',
+            phone: '',
+            paymentTerms: inv.paymentTerms || 'Net 30 Days',
+            billingAddress: {
+              street: inv.billingAddress?.street || '',
+              city: inv.billingAddress?.city || '',
+              state: inv.billingAddress?.state || '',
+              postalCode: inv.billingAddress?.postalCode || '',
+              country: inv.billingAddress?.country || 'India',
+            },
+            shippingAddress: {
+              street: inv.shippingAddress?.street || '',
+              city: inv.shippingAddress?.city || '',
+              state: inv.shippingAddress?.state || '',
+              postalCode: inv.shippingAddress?.postalCode || '',
+              country: inv.shippingAddress?.country || 'India',
+            },
+            sameAsBillingAddress: true,
+            status: 'active',
+            totalInvoiced: inv.total || 0,
+            paid: inv.amountPaid || 0,
+            outstanding: inv.amountDue || 0,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          });
+        }
       } finally {
         setLoading(false);
       }

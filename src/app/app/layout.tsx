@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 export interface UserProfileData {
+  username?: string;
   fullName: string;
   email: string;
   organizationName: string;
@@ -43,6 +44,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       .then((json) => {
         if (json.success && json.data) {
           setProfile({
+            username: json.data.username || json.data.fullName || '',
             fullName: json.data.fullName || '',
             email: json.data.email || '',
             organizationName: json.data.organizationName || 'My Organization',

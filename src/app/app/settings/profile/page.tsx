@@ -15,6 +15,7 @@ export default function ProfileSettingsPage() {
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
 
+  const [username, setUsername] = React.useState('');
   const [email, setEmail] = React.useState('');
   const [fullName, setFullName] = React.useState('');
   const [phone, setPhone] = React.useState('');
@@ -32,6 +33,7 @@ export default function ProfileSettingsPage() {
       if (!res.ok) throw new Error('Failed to load profile');
       const json = await res.json();
       if (json.success && json.data) {
+        setUsername(json.data.username || json.data.fullName || '');
         setEmail(json.data.email || '');
         setFullName(json.data.fullName || '');
         setPhone(json.data.phone || '');
@@ -61,7 +63,8 @@ export default function ProfileSettingsPage() {
     setSaving(true);
     try {
       const payload: Record<string, any> = {
-        fullName,
+        username,
+        fullName: fullName || username,
         phone,
         avatarUrl,
       };
@@ -120,6 +123,22 @@ export default function ProfileSettingsPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-1.5">
+                      Username
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2.5 text-xs text-slate-400 font-semibold font-mono">@</span>
+                      <Input
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        placeholder="e.g. john_doe"
+                        className="pl-7 font-mono font-bold"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-1.5">
                       Full Name
                     </label>
                     <Input
@@ -153,17 +172,6 @@ export default function ProfileSettingsPage() {
                       />
                       <Phone className="h-4 w-4 text-slate-400 absolute right-2.5 top-2.5" />
                     </div>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-1.5">
-                      Avatar Image URL
-                    </label>
-                    <Input
-                      value={avatarUrl}
-                      onChange={(e) => setAvatarUrl(e.target.value)}
-                      placeholder="https://example.com/avatar.jpg"
-                    />
                   </div>
                 </div>
 

@@ -156,9 +156,15 @@ export class QuoteService {
 
     if (input.customerId) payload.customer_id = input.customerId;
     const quoteDateStr = input.quoteDate || input.date;
-    if (quoteDateStr) payload.quote_date = new Date(quoteDateStr).toISOString();
+    if (quoteDateStr) {
+      const d = new Date(quoteDateStr);
+      if (!isNaN(d.getTime())) payload.quote_date = d.toISOString();
+    }
     const validUntilStr = input.validUntil || input.expiryDate;
-    if (validUntilStr) payload.valid_until = new Date(validUntilStr).toISOString();
+    if (validUntilStr) {
+      const d = new Date(validUntilStr);
+      if (!isNaN(d.getTime())) payload.valid_until = d.toISOString();
+    }
     if (input.status) payload.status = input.status;
     if (input.notes !== undefined) payload.notes = input.notes;
     if (input.terms !== undefined) payload.terms = input.terms;

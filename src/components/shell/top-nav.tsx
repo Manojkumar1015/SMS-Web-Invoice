@@ -217,7 +217,8 @@ export function TopNav({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               <div className="p-2 border-b border-border">
-                <p className="text-xs font-semibold">{displayName}</p>
+                <p className="text-xs font-bold text-slate-900">{profile?.username ? `@${profile.username}` : displayName}</p>
+                {profile?.username && <p className="text-[11px] font-medium text-slate-600">{displayName}</p>}
                 <p className="text-[11px] text-muted-foreground truncate">{profile?.email || ''}</p>
               </div>
               <Link href="/app/settings/profile">

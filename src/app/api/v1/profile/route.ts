@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
       throw new DatabaseError(`Failed to fetch profile: ${error.message}`);
     }
 
+    const username = profile?.full_name || context.user.email.split('@')[0];
     const fullName = profile?.full_name || context.user.email.split('@')[0];
     const phone = profile?.phone || '';
     const avatarUrl = profile?.avatar_url || '';
@@ -29,6 +30,7 @@ export async function GET(request: NextRequest) {
       {
         id: context.user.id,
         email: context.user.email,
+        username,
         fullName,
         phone,
         avatarUrl,
@@ -65,7 +67,8 @@ export async function PATCH(request: NextRequest) {
     const updatePayload: Record<string, any> = {
       updated_at: new Date().toISOString(),
     };
-    if (data.fullName !== undefined) updatePayload.full_name = data.fullName;
+    if (data.username !== undefined) updatePayload.full_name = data.username;
+    else if (data.fullName !== undefined) updatePayload.full_name = data.fullName;
     if (data.phone !== undefined) updatePayload.phone = data.phone || null;
     if (data.avatarUrl !== undefined) updatePayload.avatar_url = data.avatarUrl || null;
 
@@ -91,11 +94,14 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
+    const resUsername = updatedProfile?.full_name || context.user.email.split('@')[0];
+
     return successResponse(
       {
         id: context.user.id,
         email: context.user.email,
-        fullName: updatedProfile?.full_name || context.user.email.split('@')[0],
+        username: resUsername,
+        fullName: resUsername,
         phone: updatedProfile?.phone || '',
         avatarUrl: updatedProfile?.avatar_url || '',
         organizationName: context.organization.name,

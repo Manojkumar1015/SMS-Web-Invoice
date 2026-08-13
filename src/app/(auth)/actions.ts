@@ -7,6 +7,7 @@ import { ensureUserOrganization } from '@/lib/api/auth-context';
 
 
 export async function loginAction(formData: FormData) {
+  const username = formData.get('username') as string;
   const email = formData.get('email') as string;
   const password = formData.get('password') as string;
 
@@ -27,12 +28,21 @@ export async function loginAction(formData: FormData) {
 
   if (data.user) {
     await ensureUserOrganization(supabase, data.user);
+
+    if (username && username.trim()) {
+      await (supabase.from('profiles' as any) as any).upsert({
+        id: data.user.id,
+        full_name: username.trim(),
+        updated_at: new Date().toISOString(),
+      });
+    }
   }
 
   return { success: true };
 }
 
 export async function signupAction(formData: FormData) {
+  const username = formData.get('username') as string;
   const companyName = formData.get('companyName') as string;
   const email = formData.get('email') as string;
   const password = formData.get('password') as string;
@@ -40,6 +50,8 @@ export async function signupAction(formData: FormData) {
   if (!companyName || !email || !password) {
     return { success: false, error: 'All fields are required.' };
   }
+
+  const displayName = username && username.trim() ? username.trim() : email.split('@')[0];
 
   const supabase = createClient();
   const confirmationRedirectUrl = `${getURL()}/auth/confirm?next=/app/home`;
@@ -50,8 +62,9 @@ export async function signupAction(formData: FormData) {
     password,
     options: {
       data: {
+        username: displayName,
         company_name: companyName,
-        full_name: email.split('@')[0],
+        full_name: displayName,
       },
       emailRedirectTo: confirmationRedirectUrl,
     },
@@ -69,7 +82,7 @@ export async function signupAction(formData: FormData) {
     // Create Profile
     await (supabase.from('profiles' as any) as any).upsert({
       id: userId,
-      full_name: email.split('@')[0],
+      full_name: displayName,
       updated_at: new Date().toISOString(),
     });
 

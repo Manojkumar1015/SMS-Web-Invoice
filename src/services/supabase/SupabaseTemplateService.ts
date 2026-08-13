@@ -3,8 +3,14 @@ import { InvoiceTemplate, TemplateCreateInput, TemplateConfiguration } from '@/t
 import { FilterParams, PaginatedResult } from '@/types/common';
 
 export class SupabaseTemplateService implements ITemplateService {
-  async getTemplates(params?: FilterParams): Promise<PaginatedResult<InvoiceTemplate>> {
-    const res = await fetch('/api/v1/invoice-templates', { cache: 'no-store' });
+  async getTemplates(params?: FilterParams & { category?: string }): Promise<PaginatedResult<InvoiceTemplate>> {
+    const query = new URLSearchParams();
+    if (params?.search) query.set('search', params.search);
+    if (params?.status) query.set('status', params.status);
+    if (params?.category) query.set('category', params.category);
+
+    const url = `/api/v1/invoice-templates${query.toString() ? '?' + query.toString() : ''}`;
+    const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) {
       throw new Error(`Failed to fetch templates: ${res.statusText}`);
     }

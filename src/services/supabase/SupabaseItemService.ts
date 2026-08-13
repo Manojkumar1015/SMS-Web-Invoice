@@ -6,8 +6,11 @@ export class SupabaseItemService implements IItemService {
   async getItems(params?: FilterParams): Promise<PaginatedResult<Item>> {
     const query = new URLSearchParams();
     if (params?.search) query.set('search', params.search);
-    if (params?.category) query.set('category', params.category);
-    if (params?.status) query.set('is_active', params.status === 'active' ? 'true' : 'false');
+    if (params?.type && params.type !== 'all') query.set('type', params.type);
+    if (params?.category && params.category !== 'all') query.set('category', params.category);
+    if (params?.status && params.status !== 'all') {
+      query.set('is_active', params.status === 'active' ? 'true' : 'false');
+    }
     if (params?.page) query.set('page', String(params.page));
     if (params?.pageSize) query.set('pageSize', String(params.pageSize));
 

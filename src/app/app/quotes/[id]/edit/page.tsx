@@ -49,8 +49,42 @@ export default function EditQuotePage() {
         setItems(q.items || []);
         setStatus(q.status);
 
-        const cust = await customerService.getCustomerById(q.customerId);
-        if (cust) setSelectedCustomer(cust);
+        const cust = await customerService.getCustomerById(q.customerId).catch(() => null);
+        if (cust) {
+          setSelectedCustomer(cust);
+        } else if (q.customerId || q.customerName) {
+          setSelectedCustomer({
+            id: q.customerId || 'cust-fallback',
+            customerType: 'business',
+            companyName: q.customerName || 'Customer',
+            displayName: q.customerName || 'Customer',
+            contactPerson: '',
+            email: q.customerEmail || '',
+            phone: '',
+            paymentTerms: q.paymentTerms || 'Net 30 Days',
+            billingAddress: {
+              street: q.billingAddress?.street || '',
+              city: q.billingAddress?.city || '',
+              state: q.billingAddress?.state || '',
+              postalCode: q.billingAddress?.postalCode || '',
+              country: q.billingAddress?.country || 'India',
+            },
+            shippingAddress: {
+              street: q.shippingAddress?.street || '',
+              city: q.shippingAddress?.city || '',
+              state: q.shippingAddress?.state || '',
+              postalCode: q.shippingAddress?.postalCode || '',
+              country: q.shippingAddress?.country || 'India',
+            },
+            sameAsBillingAddress: true,
+            status: 'active',
+            totalInvoiced: q.total || 0,
+            paid: 0,
+            outstanding: q.total || 0,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          });
+        }
       } finally {
         setLoading(false);
       }
