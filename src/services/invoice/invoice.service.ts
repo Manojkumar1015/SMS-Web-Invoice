@@ -3,6 +3,8 @@ import { AuthContext, requireRole } from '@/lib/api/auth-context';
 import { logAuditEvent } from '@/lib/api/audit';
 import { Invoice, InvoiceCreateInput } from '@/types/invoice';
 import { DocumentItem } from '@/types/quote';
+import { calculateDocumentTotals, roundCurrency } from '@/lib/financial';
+import { validateOrganizationCustomer, validateOrganizationItems } from '@/lib/api/tenantValidation';
 
 export class InvoiceService {
   private repo = new InvoiceRepository();
@@ -72,45 +74,76 @@ export class InvoiceService {
   async createInvoice(context: AuthContext, input: InvoiceCreateInput): Promise<Invoice> {
     requireRole(['Owner', 'Admin', 'Accountant', 'Staff'], context.membership.role);
 
-    const invoiceNumber = input.invoiceNumber || (await this.repo.getNextInvoiceNumber(context.organization.id));
+    // Multi-tenant customer & item ownership validation
+    await validateOrganizationCustomer(input.customerId, context.organization.id);
+    await validateOrganizationItems(input.items.map((i) => i.itemId), context.organization.id);
 
-    const subtotal = input.items.reduce((sum, item) => sum + (item.quantity * item.rate - (item.discount || 0)), 0);
-    const tax = input.items.reduce((sum, item) => sum + ((item.quantity * item.rate - (item.discount || 0)) * ((item.taxRate || 0) / 100)), 0);
-    const discount = input.discountTotal || 0;
-    const total = Math.max(0, subtotal + tax - discount);
+    const invoiceNumber = input.invoiceNumber && input.invoiceNumber.trim()
+      ? input.invoiceNumber.trim()
+      : await this.repo.getNextInvoiceNumber(context.organization.id);
+
+    const lineInputs = input.items.map((item) => ({
+      quantity: item.quantity,
+      unitPrice: item.rate !== undefined ? item.rate : (item.unitPrice || 0),
+      discount: item.discount || 0,
+      taxRate: item.taxRate || 0,
+    }));
+
+    const computed = calculateDocumentTotals({
+      items: lineInputs,
+      discountTotal: input.discountTotal || input.discount || 0,
+    });
+
+    const invoiceDate = input.invoiceDate || input.date || new Date().toISOString().split('T')[0];
+    const dueDate = input.dueDate || new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
+
+    const amountPaid = 0;
+    const balanceDue = computed.total;
+
+    // Derive authoritative status if not explicitly provided
+    let status = input.status || 'sent';
+    if (balanceDue === 0 && computed.total > 0) {
+      status = 'paid';
+    } else if (new Date(dueDate) < new Date() && balanceDue > 0) {
+      status = 'overdue';
+    }
 
     const payload = {
       organization_id: context.organization.id,
       customer_id: input.customerId,
       quote_id: input.quoteId || null,
       invoice_number: invoiceNumber,
-      invoice_date: new Date(input.date).toISOString(),
-      due_date: new Date(input.dueDate).toISOString(),
-      status: input.status || 'sent',
-      subtotal,
-      discount,
-      tax,
-      total,
-      amount_paid: 0,
-      balance_due: total,
+      invoice_date: new Date(invoiceDate).toISOString(),
+      due_date: new Date(dueDate).toISOString(),
+      status,
+      subtotal: computed.subtotal,
+      discount: computed.discountTotal,
+      tax: computed.taxTotal,
+      total: computed.total,
+      amount_paid: amountPaid,
+      balance_due: balanceDue,
       notes: input.notes || null,
       terms: input.terms || null,
+      template_id: input.templateId || null,
       created_by: context.user.id,
       updated_by: context.user.id,
     };
 
-    const items = input.items.map((item) => ({
-      item_id: item.itemId || null,
-      description: item.name || item.description || '',
-      quantity: item.quantity,
-      unit_price: item.rate,
-      discount: item.discount || 0,
-      tax_rate: item.taxRate || 0,
-      tax_amount: (item.quantity * item.rate - (item.discount || 0)) * ((item.taxRate || 0) / 100),
-      line_total: item.amount || (item.quantity * item.rate),
-    }));
+    const itemsPayload = input.items.map((item, idx) => {
+      const calc = computed.items[idx];
+      return {
+        item_id: item.itemId || null,
+        description: item.description || item.name || 'Line Item',
+        quantity: calc.quantity,
+        unit_price: calc.unitPrice,
+        discount: calc.discount,
+        tax_rate: calc.taxRate,
+        tax_amount: calc.taxAmount,
+        line_total: calc.lineTotal,
+      };
+    });
 
-    const row = await this.repo.create(payload, items);
+    const row = await this.repo.create(payload, itemsPayload);
 
     logAuditEvent(context.organization.id, context.user.id, 'ORGANIZATION_UPDATED' as any, 'Invoice', row.id, {
       action: 'invoice.created',
@@ -125,42 +158,73 @@ export class InvoiceService {
 
     const existing = await this.repo.getById(id, context.organization.id);
 
+    if (input.customerId) {
+      await validateOrganizationCustomer(input.customerId, context.organization.id);
+    }
+
     const payload: Record<string, any> = {
       updated_by: context.user.id,
     };
 
     if (input.customerId) payload.customer_id = input.customerId;
-    if (input.date) payload.invoice_date = new Date(input.date).toISOString();
+    const invDateStr = input.invoiceDate || input.date;
+    if (invDateStr) payload.invoice_date = new Date(invDateStr).toISOString();
     if (input.dueDate) payload.due_date = new Date(input.dueDate).toISOString();
-    if (input.status) payload.status = input.status;
     if (input.notes !== undefined) payload.notes = input.notes;
     if (input.terms !== undefined) payload.terms = input.terms;
+    if (input.templateId !== undefined) payload.template_id = input.templateId;
 
     let itemsPayload: Record<string, any>[] | undefined = undefined;
     if (input.items) {
-      const subtotal = input.items.reduce((sum, item) => sum + (item.quantity * item.rate - (item.discount || 0)), 0);
-      const tax = input.items.reduce((sum, item) => sum + ((item.quantity * item.rate - (item.discount || 0)) * ((item.taxRate || 0) / 100)), 0);
-      const discount = input.discountTotal || 0;
-      const total = Math.max(0, subtotal + tax - discount);
-      const amountPaid = Number(existing.amount_paid) || 0;
-      const balanceDue = Math.max(0, total - amountPaid);
+      await validateOrganizationItems(input.items.map((i) => i.itemId), context.organization.id);
 
-      payload.subtotal = subtotal;
-      payload.tax = tax;
-      payload.discount = discount;
-      payload.total = total;
+      const lineInputs = input.items.map((item) => ({
+        quantity: item.quantity,
+        unitPrice: item.rate !== undefined ? item.rate : (item.unitPrice || 0),
+        discount: item.discount || 0,
+        taxRate: item.taxRate || 0,
+      }));
+
+      const computed = calculateDocumentTotals({
+        items: lineInputs,
+        discountTotal: input.discountTotal || input.discount || 0,
+      });
+
+      const amountPaid = Number(existing.amount_paid) || 0;
+      const balanceDue = Math.max(0, roundCurrency(computed.total - amountPaid));
+
+      payload.subtotal = computed.subtotal;
+      payload.tax = computed.taxTotal;
+      payload.discount = computed.discountTotal;
+      payload.total = computed.total;
       payload.balance_due = balanceDue;
 
-      itemsPayload = input.items.map((item) => ({
-        item_id: item.itemId || null,
-        description: item.name || item.description || '',
-        quantity: item.quantity,
-        unit_price: item.rate,
-        discount: item.discount || 0,
-        tax_rate: item.taxRate || 0,
-        tax_amount: (item.quantity * item.rate - (item.discount || 0)) * ((item.taxRate || 0) / 100),
-        line_total: item.amount || (item.quantity * item.rate),
-      }));
+      itemsPayload = input.items.map((item, idx) => {
+        const calc = computed.items[idx];
+        return {
+          item_id: item.itemId || null,
+          description: item.description || item.name || 'Line Item',
+          quantity: calc.quantity,
+          unit_price: calc.unitPrice,
+          discount: calc.discount,
+          tax_rate: calc.taxRate,
+          tax_amount: calc.taxAmount,
+          line_total: calc.lineTotal,
+        };
+      });
+    }
+
+    // Determine derived status if not explicitly passed
+    if (input.status) {
+      payload.status = input.status;
+    } else if (payload.balance_due !== undefined) {
+      const currentPaid = Number(existing.amount_paid) || 0;
+      const currentTotal = payload.total !== undefined ? payload.total : Number(existing.total);
+      if (payload.balance_due === 0 && currentTotal > 0) {
+        payload.status = 'paid';
+      } else if (currentPaid > 0 && currentPaid < currentTotal) {
+        payload.status = 'partially_paid';
+      }
     }
 
     const row = await this.repo.update(id, context.organization.id, payload, itemsPayload);

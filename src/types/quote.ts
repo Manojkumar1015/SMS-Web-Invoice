@@ -15,6 +15,7 @@ export interface DocumentItem {
   quantity: number;
   unit: string;
   rate: number;
+  unitPrice?: number;
   discount: number; // rate discount amount
   taxRate: number; // tax percentage e.g. 18
   amount: number; // computed line total
@@ -53,10 +54,14 @@ export interface Quote {
   };
   date: string;
   expiryDate: string;
+  quoteDate?: string;
+  validUntil?: string;
   paymentTerms?: string;
   items: DocumentItem[];
   subtotal: number;
+  discount?: number;
   discountTotal: number;
+  tax?: number;
   taxTotal: number;
   total: number;
   notes?: string;
@@ -68,5 +73,4 @@ export interface Quote {
   updatedAt: string;
 }
 
-export type QuoteCreateInput = Omit<Quote, 'id' | 'createdAt' | 'updatedAt'>;
-
+export type QuoteCreateInput = Omit<Quote, 'id' | 'createdAt' | 'updatedAt'> & { quoteNumber?: string };

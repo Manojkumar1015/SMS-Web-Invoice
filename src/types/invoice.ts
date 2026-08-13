@@ -44,10 +44,13 @@ export interface Invoice {
   };
   date: string;
   dueDate: string;
+  invoiceDate?: string;
   paymentTerms?: string;
   items: DocumentItem[];
   subtotal: number;
+  discount?: number;
   discountTotal: number;
+  tax?: number;
   taxTotal: number;
   roundOff?: number;
   total: number;
@@ -55,6 +58,7 @@ export interface Invoice {
   amountDue: number;
   notes?: string;
   terms?: string;
+  templateId?: string;
   status: InvoiceStatus;
   activities?: InvoiceActivity[];
   createdAt: string;
@@ -62,5 +66,3 @@ export interface Invoice {
 }
 
 export type InvoiceCreateInput = Omit<Invoice, 'id' | 'invoiceNumber' | 'amountPaid' | 'amountDue' | 'createdAt' | 'updatedAt'> & { invoiceNumber?: string };
-
-

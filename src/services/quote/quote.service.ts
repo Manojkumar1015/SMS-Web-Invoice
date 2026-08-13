@@ -3,6 +3,9 @@ import { InvoiceRepository } from '@/repositories/invoice.repository';
 import { AuthContext, requireRole } from '@/lib/api/auth-context';
 import { logAuditEvent } from '@/lib/api/audit';
 import { Quote, QuoteCreateInput, DocumentItem } from '@/types/quote';
+import { calculateDocumentTotals } from '@/lib/financial';
+import { validateOrganizationCustomer, validateOrganizationItems } from '@/lib/api/tenantValidation';
+import { ValidationError, ConflictError } from '@/lib/api/errors';
 
 export class QuoteService {
   private repo = new QuoteRepository();
@@ -44,6 +47,7 @@ export class QuoteService {
       total: Number(row.total) || 0,
       notes: row.notes || undefined,
       terms: row.terms || undefined,
+      convertedInvoiceId: row.converted_to_invoice_id || undefined,
       items,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -70,42 +74,61 @@ export class QuoteService {
   async createQuote(context: AuthContext, input: QuoteCreateInput): Promise<Quote> {
     requireRole(['Owner', 'Admin', 'Accountant', 'Staff'], context.membership.role);
 
-    const quoteNumber = input.quoteNumber || (await this.repo.getNextQuoteNumber(context.organization.id));
+    // Multi-tenant customer & item ownership validation
+    await validateOrganizationCustomer(input.customerId, context.organization.id);
+    await validateOrganizationItems(input.items.map((i) => i.itemId), context.organization.id);
 
-    const subtotal = input.items.reduce((sum, item) => sum + (item.quantity * item.rate - (item.discount || 0)), 0);
-    const tax = input.items.reduce((sum, item) => sum + ((item.quantity * item.rate - (item.discount || 0)) * ((item.taxRate || 0) / 100)), 0);
-    const discount = input.discountTotal || 0;
-    const total = Math.max(0, subtotal + tax - discount);
+    const quoteNumber = input.quoteNumber && input.quoteNumber.trim()
+      ? input.quoteNumber.trim()
+      : await this.repo.getNextQuoteNumber(context.organization.id);
+
+    const lineInputs = input.items.map((item) => ({
+      quantity: item.quantity,
+      unitPrice: item.rate !== undefined ? item.rate : (item.unitPrice || 0),
+      discount: item.discount || 0,
+      taxRate: item.taxRate || 0,
+    }));
+
+    const computed = calculateDocumentTotals({
+      items: lineInputs,
+      discountTotal: input.discountTotal || input.discount || 0,
+    });
+
+    const quoteDate = input.quoteDate || input.date || new Date().toISOString().split('T')[0];
+    const validUntil = input.validUntil || input.expiryDate || new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
 
     const payload = {
       organization_id: context.organization.id,
       customer_id: input.customerId,
       quote_number: quoteNumber,
-      quote_date: new Date(input.date).toISOString(),
-      valid_until: new Date(input.expiryDate).toISOString(),
+      quote_date: new Date(quoteDate).toISOString(),
+      valid_until: new Date(validUntil).toISOString(),
       status: input.status || 'draft',
-      subtotal,
-      discount,
-      tax,
-      total,
+      subtotal: computed.subtotal,
+      discount: computed.discountTotal,
+      tax: computed.taxTotal,
+      total: computed.total,
       notes: input.notes || null,
       terms: input.terms || null,
       created_by: context.user.id,
       updated_by: context.user.id,
     };
 
-    const items = input.items.map((item) => ({
-      item_id: item.itemId || null,
-      description: item.name || item.description || '',
-      quantity: item.quantity,
-      unit_price: item.rate,
-      discount: item.discount || 0,
-      tax_rate: item.taxRate || 0,
-      tax_amount: (item.quantity * item.rate - (item.discount || 0)) * ((item.taxRate || 0) / 100),
-      line_total: item.amount || (item.quantity * item.rate),
-    }));
+    const itemsPayload = input.items.map((item, idx) => {
+      const calc = computed.items[idx];
+      return {
+        item_id: item.itemId || null,
+        description: item.description || item.name || 'Line Item',
+        quantity: calc.quantity,
+        unit_price: calc.unitPrice,
+        discount: calc.discount,
+        tax_rate: calc.taxRate,
+        tax_amount: calc.taxAmount,
+        line_total: calc.lineTotal,
+      };
+    });
 
-    const row = await this.repo.create(payload, items);
+    const row = await this.repo.create(payload, itemsPayload);
 
     logAuditEvent(context.organization.id, context.user.id, 'ORGANIZATION_UPDATED' as any, 'Quote', row.id, {
       action: 'quote.created',
@@ -118,39 +141,62 @@ export class QuoteService {
   async updateQuote(context: AuthContext, id: string, input: Partial<QuoteCreateInput>): Promise<Quote> {
     requireRole(['Owner', 'Admin', 'Accountant', 'Staff'], context.membership.role);
 
+    const existingRow = await this.repo.getById(id, context.organization.id);
+    if (existingRow.status === 'converted' && input.status !== 'converted') {
+      throw new ValidationError('Converted quotes cannot be edited.');
+    }
+
+    if (input.customerId) {
+      await validateOrganizationCustomer(input.customerId, context.organization.id);
+    }
+
     const payload: Record<string, any> = {
       updated_by: context.user.id,
     };
 
     if (input.customerId) payload.customer_id = input.customerId;
-    if (input.date) payload.quote_date = new Date(input.date).toISOString();
-    if (input.expiryDate) payload.valid_until = new Date(input.expiryDate).toISOString();
+    const quoteDateStr = input.quoteDate || input.date;
+    if (quoteDateStr) payload.quote_date = new Date(quoteDateStr).toISOString();
+    const validUntilStr = input.validUntil || input.expiryDate;
+    if (validUntilStr) payload.valid_until = new Date(validUntilStr).toISOString();
     if (input.status) payload.status = input.status;
     if (input.notes !== undefined) payload.notes = input.notes;
     if (input.terms !== undefined) payload.terms = input.terms;
 
     let itemsPayload: Record<string, any>[] | undefined = undefined;
     if (input.items) {
-      const subtotal = input.items.reduce((sum, item) => sum + (item.quantity * item.rate - (item.discount || 0)), 0);
-      const tax = input.items.reduce((sum, item) => sum + ((item.quantity * item.rate - (item.discount || 0)) * ((item.taxRate || 0) / 100)), 0);
-      const discount = input.discountTotal || 0;
-      const total = Math.max(0, subtotal + tax - discount);
+      await validateOrganizationItems(input.items.map((i) => i.itemId), context.organization.id);
 
-      payload.subtotal = subtotal;
-      payload.tax = tax;
-      payload.discount = discount;
-      payload.total = total;
-
-      itemsPayload = input.items.map((item) => ({
-        item_id: item.itemId || null,
-        description: item.name || item.description || '',
+      const lineInputs = input.items.map((item) => ({
         quantity: item.quantity,
-        unit_price: item.rate,
+        unitPrice: item.rate !== undefined ? item.rate : (item.unitPrice || 0),
         discount: item.discount || 0,
-        tax_rate: item.taxRate || 0,
-        tax_amount: (item.quantity * item.rate - (item.discount || 0)) * ((item.taxRate || 0) / 100),
-        line_total: item.amount || (item.quantity * item.rate),
+        taxRate: item.taxRate || 0,
       }));
+
+      const computed = calculateDocumentTotals({
+        items: lineInputs,
+        discountTotal: input.discountTotal || input.discount || 0,
+      });
+
+      payload.subtotal = computed.subtotal;
+      payload.tax = computed.taxTotal;
+      payload.discount = computed.discountTotal;
+      payload.total = computed.total;
+
+      itemsPayload = input.items.map((item, idx) => {
+        const calc = computed.items[idx];
+        return {
+          item_id: item.itemId || null,
+          description: item.description || item.name || 'Line Item',
+          quantity: calc.quantity,
+          unit_price: calc.unitPrice,
+          discount: calc.discount,
+          tax_rate: calc.taxRate,
+          tax_amount: calc.taxAmount,
+          line_total: calc.lineTotal,
+        };
+      });
     }
 
     const row = await this.repo.update(id, context.organization.id, payload, itemsPayload);
@@ -177,8 +223,11 @@ export class QuoteService {
     requireRole(['Owner', 'Admin', 'Accountant', 'Staff'], context.membership.role);
 
     const quoteRow = await this.repo.getById(quoteId, context.organization.id);
-    const quote = this.mapRowToQuote(quoteRow);
+    if (quoteRow.status === 'converted' || quoteRow.converted_to_invoice_id) {
+      throw new ConflictError(`Quote ${quoteRow.quote_number} has already been converted to an invoice.`);
+    }
 
+    const quote = this.mapRowToQuote(quoteRow);
     const invoiceNumber = await this.invoiceRepo.getNextInvoiceNumber(context.organization.id);
     const now = new Date();
     const dueDate = new Date();
@@ -211,13 +260,18 @@ export class QuoteService {
       unit_price: item.rate,
       discount: item.discount,
       tax_rate: item.taxRate,
-      tax_amount: (item.quantity * item.rate - (item.discount || 0)) * ((item.taxRate || 0) / 100),
+      tax_amount: Math.round(((item.quantity * item.rate - item.discount) * (item.taxRate / 100) + Number.EPSILON) * 100) / 100,
       line_total: item.amount,
     }));
 
+    // Create Invoice first
     const createdInvoice = await this.invoiceRepo.create(invoicePayload, invoiceItems);
 
-    await this.repo.update(quoteId, context.organization.id, { status: 'converted' });
+    // Atomically mark Quote as converted
+    await this.repo.update(quoteId, context.organization.id, {
+      status: 'converted',
+      converted_to_invoice_id: createdInvoice.id,
+    });
 
     logAuditEvent(context.organization.id, context.user.id, 'ORGANIZATION_UPDATED' as any, 'Quote', quoteId, {
       action: 'quote.converted',

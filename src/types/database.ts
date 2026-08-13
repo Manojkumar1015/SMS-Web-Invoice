@@ -280,6 +280,262 @@ export interface Database {
           updated_by?: string | null;
         };
       };
+      quotes: {
+        Row: {
+          id: string;
+          organization_id: string;
+          customer_id: string;
+          quote_number: string;
+          quote_date: string;
+          valid_until: string;
+          status: 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired' | 'converted';
+          subtotal: number;
+          discount: number;
+          tax: number;
+          total: number;
+          notes: string | null;
+          terms: string | null;
+          converted_to_invoice_id: string | null;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+          updated_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          customer_id: string;
+          quote_number: string;
+          quote_date?: string;
+          valid_until: string;
+          status?: 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired' | 'converted';
+          subtotal?: number;
+          discount?: number;
+          tax?: number;
+          total?: number;
+          notes?: string | null;
+          terms?: string | null;
+          converted_to_invoice_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+          updated_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          customer_id?: string;
+          quote_number?: string;
+          quote_date?: string;
+          valid_until?: string;
+          status?: 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired' | 'converted';
+          subtotal?: number;
+          discount?: number;
+          tax?: number;
+          total?: number;
+          notes?: string | null;
+          terms?: string | null;
+          converted_to_invoice_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+          updated_by?: string | null;
+        };
+      };
+      quote_items: {
+        Row: {
+          id: string;
+          organization_id: string;
+          quote_id: string;
+          item_id: string | null;
+          description: string;
+          quantity: number;
+          unit_price: number;
+          discount: number;
+          tax_rate: number;
+          tax_amount: number;
+          line_total: number;
+          sort_order: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          quote_id: string;
+          item_id?: string | null;
+          description: string;
+          quantity?: number;
+          unit_price?: number;
+          discount?: number;
+          tax_rate?: number;
+          tax_amount?: number;
+          line_total?: number;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          quote_id?: string;
+          item_id?: string | null;
+          description?: string;
+          quantity?: number;
+          unit_price?: number;
+          discount?: number;
+          tax_rate?: number;
+          tax_amount?: number;
+          line_total?: number;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      invoices: {
+        Row: {
+          id: string;
+          organization_id: string;
+          customer_id: string;
+          quote_id: string | null;
+          invoice_number: string;
+          invoice_date: string;
+          due_date: string;
+          status: 'draft' | 'sent' | 'partially_paid' | 'paid' | 'overdue' | 'cancelled';
+          subtotal: number;
+          discount: number;
+          tax: number;
+          total: number;
+          amount_paid: number;
+          balance_due: number;
+          notes: string | null;
+          terms: string | null;
+          template_id: string | null;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+          updated_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          customer_id: string;
+          quote_id?: string | null;
+          invoice_number: string;
+          invoice_date?: string;
+          due_date: string;
+          status?: 'draft' | 'sent' | 'partially_paid' | 'paid' | 'overdue' | 'cancelled';
+          subtotal?: number;
+          discount?: number;
+          tax?: number;
+          total?: number;
+          amount_paid?: number;
+          balance_due?: number;
+          notes?: string | null;
+          terms?: string | null;
+          template_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+          updated_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          customer_id?: string;
+          quote_id?: string | null;
+          invoice_number?: string;
+          invoice_date?: string;
+          due_date?: string;
+          status?: 'draft' | 'sent' | 'partially_paid' | 'paid' | 'overdue' | 'cancelled';
+          subtotal?: number;
+          discount?: number;
+          tax?: number;
+          total?: number;
+          amount_paid?: number;
+          balance_due?: number;
+          notes?: string | null;
+          terms?: string | null;
+          template_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+          updated_by?: string | null;
+        };
+      };
+      invoice_items: {
+        Row: {
+          id: string;
+          organization_id: string;
+          invoice_id: string;
+          item_id: string | null;
+          description: string;
+          quantity: number;
+          unit_price: number;
+          discount: number;
+          tax_rate: number;
+          tax_amount: number;
+          line_total: number;
+          sort_order: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          invoice_id: string;
+          item_id?: string | null;
+          description: string;
+          quantity?: number;
+          unit_price?: number;
+          discount?: number;
+          tax_rate?: number;
+          tax_amount?: number;
+          line_total?: number;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          invoice_id?: string;
+          item_id?: string | null;
+          description?: string;
+          quantity?: number;
+          unit_price?: number;
+          discount?: number;
+          tax_rate?: number;
+          tax_amount?: number;
+          line_total?: number;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      organization_counters: {
+        Row: {
+          organization_id: string;
+          entity_type: string;
+          current_value: number;
+          prefix: string;
+          updated_at: string;
+        };
+        Insert: {
+          organization_id: string;
+          entity_type: string;
+          current_value?: number;
+          prefix?: string;
+          updated_at?: string;
+        };
+        Update: {
+          organization_id?: string;
+          entity_type?: string;
+          current_value?: number;
+          prefix?: string;
+          updated_at?: string;
+        };
+      };
     };
     Views: {
       [_ in never]: never;
@@ -293,9 +549,14 @@ export interface Database {
         Args: { org_id: string };
         Returns: string;
       };
+      generate_next_number: {
+        Args: { _org_id: string; _entity_type: string; _default_prefix: string };
+        Returns: string;
+      };
     };
     Enums: {
       [_ in never]: never;
     };
   };
 }
+
