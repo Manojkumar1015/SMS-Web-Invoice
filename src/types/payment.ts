@@ -1,4 +1,4 @@
-export type PaymentMethod = 'cash' | 'upi' | 'bank_transfer' | 'credit_card' | 'cheque' | 'other';
+export type PaymentMethod = 'cash' | 'upi' | 'bank_transfer' | 'credit_card' | 'card' | 'cheque' | 'other';
 
 export type PaymentStatus = 'received' | 'partially_allocated' | 'unallocated' | 'cancelled';
 
@@ -29,6 +29,7 @@ export interface Payment {
   customerName: string;
   customerEmail?: string;
   date: string;
+  paymentDate?: string;
   amount: number;
   paymentMethod: PaymentMethod;
   referenceNumber?: string;
@@ -47,4 +48,4 @@ export interface Payment {
 export type PaymentCreateInput = Omit<
   Payment,
   'id' | 'paymentNumber' | 'status' | 'allocatedAmount' | 'unallocatedAmount' | 'allocations' | 'createdAt'
->;
+> & { paymentNumber?: string };

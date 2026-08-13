@@ -46,16 +46,20 @@ export class ExpenseService {
   async createExpense(context: AuthContext, input: ExpenseCreateInput): Promise<Expense> {
     requireRole(['Owner', 'Admin', 'Accountant', 'Staff'], context.membership.role);
 
+    const expenseDate = input.expenseDate || input.date || new Date().toISOString().split('T')[0];
+    const vendor = input.vendorName || input.vendor || null;
+
     const payload = {
       organization_id: context.organization.id,
       category: input.category,
       description: input.description,
       amount: input.amount,
-      expense_date: new Date(input.date).toISOString(),
+      expense_date: new Date(expenseDate).toISOString(),
       payment_method: input.paymentMethod || 'bank_transfer',
-      vendor: input.vendorName || null,
+      vendor,
+      reference_number: input.referenceNumber || null,
       notes: input.notes || null,
-      status: 'recorded',
+      status: input.status || 'approved',
       created_by: context.user.id,
       updated_by: context.user.id,
     };
@@ -80,10 +84,14 @@ export class ExpenseService {
     if (input.category) payload.category = input.category;
     if (input.description) payload.description = input.description;
     if (input.amount) payload.amount = input.amount;
-    if (input.date) payload.expense_date = new Date(input.date).toISOString();
+    const expDateStr = input.expenseDate || input.date;
+    if (expDateStr) payload.expense_date = new Date(expDateStr).toISOString();
     if (input.paymentMethod) payload.payment_method = input.paymentMethod;
-    if (input.vendorName !== undefined) payload.vendor = input.vendorName;
+    const vendorVal = input.vendorName !== undefined ? input.vendorName : input.vendor;
+    if (vendorVal !== undefined) payload.vendor = vendorVal;
+    if (input.referenceNumber !== undefined) payload.reference_number = input.referenceNumber;
     if (input.notes !== undefined) payload.notes = input.notes;
+    if (input.status) payload.status = input.status;
 
     const row = await this.repo.update(id, context.organization.id, payload);
 

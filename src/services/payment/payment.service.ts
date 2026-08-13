@@ -23,7 +23,7 @@ export class PaymentService {
 
     const amount = Number(row.amount) || 0;
     const method: PaymentMethod = row.payment_method === 'card' ? 'credit_card' : (row.payment_method as PaymentMethod) || 'cash';
-    const status: PaymentStatus = row.status === 'completed' ? 'received' : 'received';
+    const status: PaymentStatus = 'received';
 
     return {
       id: row.id,
@@ -75,16 +75,19 @@ export class PaymentService {
   async createPayment(context: AuthContext, input: PaymentCreateInput): Promise<Payment> {
     requireRole(['Owner', 'Admin', 'Accountant', 'Staff'], context.membership.role);
 
+    const paymentDate = input.paymentDate || input.date || new Date().toISOString().split('T')[0];
+
     const payload = {
       organization_id: context.organization.id,
       invoice_id: input.invoiceId,
       amount: input.amount,
-      payment_date: new Date(input.date).toISOString(),
+      payment_date: new Date(paymentDate).toISOString(),
       payment_method: input.paymentMethod === 'credit_card' ? 'card' : input.paymentMethod,
       reference_number: input.referenceNumber || null,
       notes: input.notes || null,
       status: 'completed',
       created_by: context.user.id,
+      updated_by: context.user.id,
     };
 
     const row = await this.repo.create(payload);

@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { DatabaseError, NotFoundError, ValidationError } from '@/lib/api/errors';
+import { roundCurrency } from '@/lib/financial';
 
 export interface PaymentQueryOptions {
   organizationId: string;
@@ -106,14 +107,14 @@ export class PaymentRepository {
       throw new NotFoundError(`Invoice with ID ${payload.invoice_id} not found or belongs to another organization.`);
     }
 
-    const paymentAmount = Number(payload.amount);
+    const paymentAmount = roundCurrency(Number(payload.amount));
     if (paymentAmount <= 0) {
       throw new ValidationError('Payment amount must be greater than 0.');
     }
 
-    const currentBalance = Number(invoice.balance_due);
+    const currentBalance = roundCurrency(Number(invoice.balance_due));
     if (paymentAmount > currentBalance + 0.01) {
-      throw new ValidationError(`Payment amount (${paymentAmount}) cannot exceed remaining invoice balance (${currentBalance}).`);
+      throw new ValidationError(`Payment amount (₹${paymentAmount}) cannot exceed remaining invoice balance (₹${currentBalance}).`);
     }
 
     // 2. Generate Payment Number if not provided
@@ -123,6 +124,7 @@ export class PaymentRepository {
     const { data: payment, error: payError } = await (supabase.from('payments' as any) as any)
       .insert({
         ...payload,
+        amount: paymentAmount,
         customer_id: invoice.customer_id,
         payment_number: paymentNumber,
         created_at: new Date().toISOString(),
@@ -136,8 +138,8 @@ export class PaymentRepository {
     }
 
     // 4. Update Invoice balances and status
-    const newPaid = Number(invoice.amount_paid || 0) + paymentAmount;
-    const newBalance = Math.max(0, Number(invoice.total || 0) - newPaid);
+    const newPaid = roundCurrency(Number(invoice.amount_paid || 0) + paymentAmount);
+    const newBalance = Math.max(0, roundCurrency(Number(invoice.total || 0) - newPaid));
     const newStatus = newBalance <= 0 ? 'paid' : 'partially_paid';
 
     await (supabase.from('invoices' as any) as any)
@@ -158,8 +160,8 @@ export class PaymentRepository {
     if (customer) {
       await (supabase.from('customers' as any) as any)
         .update({
-          paid: Number(customer.paid || 0) + paymentAmount,
-          outstanding: Math.max(0, Number(customer.outstanding || 0) - paymentAmount),
+          paid: roundCurrency(Number(customer.paid || 0) + paymentAmount),
+          outstanding: Math.max(0, roundCurrency(Number(customer.outstanding || 0) - paymentAmount)),
           updated_at: new Date().toISOString(),
         })
         .eq('id', invoice.customer_id);
@@ -172,7 +174,7 @@ export class PaymentRepository {
     const supabase = createClient();
     const payment = await this.getById(id, organizationId);
 
-    const paymentAmount = Number(payment.amount);
+    const paymentAmount = roundCurrency(Number(payment.amount));
     const invoiceId = payment.invoice_id;
     const customerId = payment.customer_id;
 
@@ -193,8 +195,8 @@ export class PaymentRepository {
       .single();
 
     if (invoice) {
-      const newPaid = Math.max(0, Number(invoice.amount_paid || 0) - paymentAmount);
-      const newBalance = Number(invoice.total || 0) - newPaid;
+      const newPaid = Math.max(0, roundCurrency(Number(invoice.amount_paid || 0) - paymentAmount));
+      const newBalance = roundCurrency(Number(invoice.total || 0) - newPaid);
       const newStatus = newPaid === 0 ? 'sent' : newBalance <= 0 ? 'paid' : 'partially_paid';
 
       await (supabase.from('invoices' as any) as any)
@@ -216,8 +218,8 @@ export class PaymentRepository {
     if (customer) {
       await (supabase.from('customers' as any) as any)
         .update({
-          paid: Math.max(0, Number(customer.paid || 0) - paymentAmount),
-          outstanding: Number(customer.outstanding || 0) + paymentAmount,
+          paid: Math.max(0, roundCurrency(Number(customer.paid || 0) - paymentAmount)),
+          outstanding: roundCurrency(Number(customer.outstanding || 0) + paymentAmount),
           updated_at: new Date().toISOString(),
         })
         .eq('id', customerId);

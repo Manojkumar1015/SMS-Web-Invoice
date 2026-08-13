@@ -107,13 +107,15 @@ export class SupabaseExpenseService implements IExpenseService {
       category: original.category,
       date: new Date().toISOString().split('T')[0],
       amount: original.amount,
-      taxAmount: original.taxAmount,
-      vendorName: original.vendorName,
+      taxAmount: original.taxAmount || 0,
+      totalAmount: original.totalAmount || original.amount,
+      vendorName: original.vendorName || '',
       description: `${original.description} (Copy)`,
-      billable: original.billable,
-      paymentMethod: original.paymentMethod,
+      billable: original.billable || false,
+      paymentMethod: original.paymentMethod || 'bank_transfer',
       notes: original.notes,
     };
+
 
     return this.createExpense(duplicateInput);
   }

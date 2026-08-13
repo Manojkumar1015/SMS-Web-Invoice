@@ -1,6 +1,6 @@
 export type ExpenseType = 'customer' | 'business';
 
-export type ExpenseStatus = 'draft' | 'recorded' | 'billable' | 'added_to_invoice' | 'reimbursed' | 'cancelled';
+export type ExpenseStatus = 'draft' | 'recorded' | 'approved' | 'billable' | 'added_to_invoice' | 'reimbursed' | 'cancelled' | (string & {});
 
 export type ExpenseCategory =
   | 'Salary'
@@ -16,7 +16,8 @@ export type ExpenseCategory =
   | 'Maintenance'
   | 'Utilities'
   | 'Professional Services'
-  | 'Other';
+  | 'Other'
+  | (string & {});
 
 export interface ExpenseActivity {
   id: string;
@@ -30,15 +31,18 @@ export interface ExpenseActivity {
 export interface Expense {
   id: string;
   expenseNumber: string;
-  expenseType: ExpenseType; // 'customer' | 'business'
+  expenseType: ExpenseType;
   category: ExpenseCategory;
   customerId?: string;
   customerName?: string;
   date: string;
+  expenseDate?: string;
   amount: number;
   taxAmount: number;
   totalAmount: number;
   vendorName: string;
+  vendor?: string;
+  referenceNumber?: string;
   description: string;
   billable: boolean;
   status: ExpenseStatus;
@@ -55,5 +59,5 @@ export interface Expense {
 
 export type ExpenseCreateInput = Omit<
   Expense,
-  'id' | 'expenseNumber' | 'status' | 'totalAmount' | 'createdAt'
->;
+  'id' | 'expenseNumber' | 'createdAt' | 'status' | 'totalAmount'
+> & { expenseNumber?: string; status?: ExpenseStatus; totalAmount?: number };
