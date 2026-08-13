@@ -6,7 +6,43 @@ import { Invoice } from '@/types/invoice';
 import { DocumentRenderer } from '@/components/domain/document/document-renderer';
 import { Button } from '@/components/ui/button';
 import { ZoomIn, ZoomOut, Maximize2, Monitor, Smartphone } from 'lucide-react';
-import { mockInvoices } from '@/data/mockInvoices';
+
+const DEFAULT_PREVIEW_INVOICE: Invoice = {
+  id: 'preview-inv-001',
+  invoiceNumber: 'INV-2026-001',
+  customerId: 'cust-preview',
+  customerName: 'Commercial Client Account',
+  customerEmail: 'billing@clientcompany.com',
+  date: new Date().toISOString().split('T')[0],
+  dueDate: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+  items: [
+    {
+      id: 'item-1',
+      name: 'Software Consultancy Services',
+      description: 'Monthly architecture design and technical support',
+      quantity: 1,
+      unit: 'month',
+      rate: 50000,
+      unitPrice: 50000,
+      discount: 0,
+      taxRate: 18,
+      amount: 59000,
+    },
+  ],
+  subtotal: 50000,
+  discount: 0,
+  discountTotal: 0,
+  tax: 9000,
+  taxTotal: 9000,
+  total: 59000,
+  amountPaid: 0,
+  amountDue: 59000,
+  status: 'sent',
+  notes: 'Thank you for your business.',
+  terms: 'Payment due within 30 days of invoice date.',
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+};
 
 interface TemplateLiveCanvasProps {
   config: TemplateConfiguration;
@@ -14,7 +50,7 @@ interface TemplateLiveCanvasProps {
 }
 
 export function TemplateLiveCanvas({ config, sampleInvoice }: TemplateLiveCanvasProps) {
-  const sampleData = sampleInvoice || mockInvoices[0];
+  const sampleData = sampleInvoice || DEFAULT_PREVIEW_INVOICE;
   const [zoom, setZoom] = React.useState(100);
   const [viewMode, setViewMode] = React.useState<'desktop' | 'mobile'>('desktop');
 

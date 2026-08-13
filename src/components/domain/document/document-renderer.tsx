@@ -522,6 +522,14 @@ export function DocumentRenderer({
         color: colors.text,
       }}
     >
+      {/* Top Gold Accent Stripe for White Gold / Elegant templates */}
+      {(cfg.category === 'elegant' || cfg.id === 'tmpl-white-gold') && (
+        <div
+          className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-amber-700 via-yellow-500 to-amber-600"
+          style={{ backgroundColor: colors.primary || '#B8860B' }}
+        />
+      )}
+
       {/* Watermark Overlay */}
       {watermark.enabled && (
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center overflow-hidden z-10">

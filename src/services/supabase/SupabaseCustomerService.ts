@@ -6,7 +6,9 @@ export class SupabaseCustomerService implements ICustomerService {
   async getCustomers(params?: FilterParams): Promise<PaginatedResult<Customer>> {
     const query = new URLSearchParams();
     if (params?.search) query.set('search', params.search);
-    if (params?.status) query.set('is_active', params.status === 'active' ? 'true' : 'false');
+    if (params?.status && params.status !== 'all') {
+      query.set('is_active', params.status === 'active' ? 'true' : 'false');
+    }
     if (params?.page) query.set('page', String(params.page));
     if (params?.pageSize) query.set('pageSize', String(params.pageSize));
 

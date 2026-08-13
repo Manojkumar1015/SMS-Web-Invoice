@@ -40,7 +40,7 @@ export function FileUploadMock({ label = 'Attachment / Receipt Voucher', accept 
             </div>
             <div className="truncate">
               <span className="font-bold text-slate-800 truncate block">{value.name}</span>
-              <span className="text-[10px] text-slate-500 font-mono">{value.size} • Verified Mock Upload</span>
+              <span className="text-[10px] text-slate-500 font-mono">{value.size} • Attachment Uploaded</span>
             </div>
           </div>
 

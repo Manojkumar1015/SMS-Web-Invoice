@@ -14,7 +14,7 @@ export interface CustomerQueryOptions {
 export class CustomerRepository {
   async list(options: CustomerQueryOptions) {
     const supabase = createClient();
-    const { organizationId, search, isActive = true, page = 1, pageSize = 25, sortField = 'created_at', sortOrder = 'desc' } = options;
+    const { organizationId, search, isActive, page = 1, pageSize = 25, sortField = 'created_at', sortOrder = 'desc' } = options;
 
     let query = (supabase.from('customers' as any) as any)
       .select('*', { count: 'exact' })

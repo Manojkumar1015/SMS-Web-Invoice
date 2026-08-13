@@ -51,9 +51,9 @@ export function PaymentReceiptModal({ open, onOpenChange, payment }: PaymentRece
                 <div className="h-9 w-9 rounded-lg bg-indigo-600 text-white font-bold flex items-center justify-center text-sm shadow-xs">
                   SMS
                 </div>
-                <h3 className="font-bold text-base text-slate-900">Acme Software Solutions Pvt Ltd</h3>
+                <h3 className="font-bold text-base text-slate-900">Commercial Billing System</h3>
               </div>
-              <p className="text-xs text-slate-500 mt-1">GSTIN: 27AAAAA0000A1Z5 • BKC, Mumbai 400051</p>
+              <p className="text-xs text-slate-500 mt-1">Official Payment Receipt</p>
             </div>
 
             <div className="text-right space-y-1">

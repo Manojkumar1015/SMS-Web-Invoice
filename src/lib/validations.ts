@@ -1,28 +1,47 @@
 import { z } from 'zod';
 
+const gstinRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+
 export const addressSchema = z.object({
-  street: z.string().min(1, 'Street address is required'),
-  city: z.string().min(1, 'City is required'),
-  state: z.string().min(1, 'State is required'),
-  postalCode: z.string().min(1, 'Postal code is required'),
-  country: z.string().min(1, 'Country is required'),
+  street: z.string().optional().or(z.literal('')),
+  city: z.string().optional().or(z.literal('')),
+  state: z.string().optional().or(z.literal('')),
+  postalCode: z.string().optional().or(z.literal('')),
+  country: z.string().default('India'),
 });
 
 export const customerFormSchema = z.object({
-  customerType: z.enum(['business', 'individual']),
-  companyName: z.string().min(1, 'Company name is required'),
+  customerType: z.enum(['business', 'individual']).default('business'),
+  companyName: z.string().optional().or(z.literal('')),
   displayName: z.string().min(1, 'Display name is required'),
-  contactPerson: z.string().min(1, 'Contact person is required'),
-  email: z.string().email('Invalid email address'),
-  phone: z.string().min(5, 'Phone number is required'),
-  gstin: z.string().optional(),
-  pan: z.string().optional(),
-  paymentTerms: z.string().min(1, 'Payment terms required'),
-  notes: z.string().optional(),
-  billingAddress: addressSchema,
-  shippingAddress: addressSchema,
-  sameAsBillingAddress: z.boolean(),
-  status: z.enum(['active', 'inactive']),
+  contactPerson: z.string().optional().or(z.literal('')),
+  email: z.string().email('Invalid email address').optional().or(z.literal('')),
+  phone: z.string().optional().or(z.literal('')),
+  gstin: z
+    .string()
+    .transform((val) => val?.trim().toUpperCase() || '')
+    .pipe(
+      z.string().refine((val) => val === '' || gstinRegex.test(val), {
+        message: 'Invalid GSTIN format. Expected format: 27AAAAA0000A1Z5 (15 characters)',
+      })
+    )
+    .optional(),
+  pan: z
+    .string()
+    .transform((val) => val?.trim().toUpperCase() || '')
+    .pipe(
+      z.string().refine((val) => val === '' || panRegex.test(val), {
+        message: 'Invalid PAN format. Expected format: AAAAA0000A (10 characters)',
+      })
+    )
+    .optional(),
+  paymentTerms: z.string().default('Net 30'),
+  notes: z.string().optional().or(z.literal('')),
+  billingAddress: addressSchema.optional(),
+  shippingAddress: addressSchema.optional(),
+  sameAsBillingAddress: z.boolean().default(true),
+  status: z.enum(['active', 'inactive']).default('active'),
 });
 
 export const itemFormSchema = z.object({

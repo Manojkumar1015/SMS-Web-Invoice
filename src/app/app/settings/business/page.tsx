@@ -21,10 +21,17 @@ export default function BusinessSettingsPage() {
   const [logoPreview, setLogoPreview] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    settingsService.getBusinessSettings().then((data) => {
-      setSettings(data);
-      setLoading(false);
-    });
+    settingsService
+      .getBusinessSettings()
+      .then((data) => {
+        setSettings(data);
+      })
+      .catch((err) => {
+        console.warn('Could not load business settings:', err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, []);
 
   const handleSave = async (e: React.FormEvent) => {

@@ -126,7 +126,7 @@ export function GlobalSearchModal({ open, onOpenChange }: GlobalSearchModalProps
             <div className="p-8 text-center text-xs text-muted-foreground">Searching backend services...</div>
           ) : !query.trim() ? (
             <div className="p-6 text-center text-xs text-muted-foreground">
-              Type <span className="font-semibold text-foreground">&quot;Acme&quot;</span>, <span className="font-semibold text-foreground">&quot;INV&quot;</span>, or <span className="font-semibold text-foreground">&quot;Cloud&quot;</span> to see command palette results.
+              Type <span className="font-semibold text-foreground">&quot;Customer&quot;</span>, <span className="font-semibold text-foreground">&quot;INV&quot;</span>, or <span className="font-semibold text-foreground">&quot;Item&quot;</span> to see command palette results.
             </div>
           ) : results.length === 0 ? (
             <div className="p-8 text-center text-xs text-muted-foreground">

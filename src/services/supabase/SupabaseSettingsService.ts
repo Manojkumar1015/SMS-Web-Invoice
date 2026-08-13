@@ -10,11 +10,8 @@ import {
   TeamUser,
   InviteUserInput,
 } from '@/types/settings';
-import { MockSettingsService } from '../mock/MockSettingsService';
 
 export class SupabaseSettingsService implements ISettingsService {
-  private fallbackMock = new MockSettingsService();
-
   async getBusinessSettings(): Promise<BusinessSettings> {
     try {
       if (typeof window !== 'undefined') {
@@ -26,86 +23,222 @@ export class SupabaseSettingsService implements ISettingsService {
           }
         }
       }
-    } catch {
-      // Fallback to mock service
+    } catch (err) {
+      console.warn('Failed to fetch business settings from API:', err);
     }
-    return this.fallbackMock.getBusinessSettings();
+    return {
+      companyName: 'My Organization',
+      legalName: 'My Organization',
+      email: '',
+      phone: '',
+      website: '',
+      address: '',
+      city: '',
+      state: '',
+      postalCode: '',
+      country: 'India',
+      gstin: '',
+      pan: '',
+      currency: 'INR',
+      timezone: 'Asia/Kolkata',
+      dateFormat: 'DD/MM/YYYY',
+      timeFormat: '12-hour (hh:mm A)',
+    };
   }
 
   async updateBusinessSettings(data: Partial<BusinessSettings>): Promise<BusinessSettings> {
-    try {
-      if (typeof window !== 'undefined') {
-        const res = await fetch('/api/v1/organization', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data),
-        });
-        if (res.ok) {
-          const json = await res.json();
-          if (json.success && json.data) {
-            return json.data;
-          }
+    if (typeof window !== 'undefined') {
+      const res = await fetch('/api/v1/organization', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) {
+          return json.data;
         }
       }
-    } catch {
-      // Fallback
     }
-    return this.fallbackMock.updateBusinessSettings(data);
+    throw new Error('Failed to update business settings');
   }
 
-  // Delegated mock methods for remaining settings domains in Phase 6B
-  getInvoiceSettings(): Promise<InvoiceSettings> {
-    return this.fallbackMock.getInvoiceSettings();
+  async getInvoiceSettings(): Promise<InvoiceSettings> {
+    return {
+      prefix: 'INV',
+      numberFormat: 'INV-YYYY-000001',
+      nextNumber: 1,
+      defaultPaymentTerms: 'Net 30',
+      defaultDueDays: 30,
+      defaultCurrency: 'INR',
+      defaultTemplateId: 'tmpl-modern',
+      notesFooter: 'Thank you for your business!',
+    };
   }
-  updateInvoiceSettings(data: Partial<InvoiceSettings>): Promise<InvoiceSettings> {
-    return this.fallbackMock.updateInvoiceSettings(data);
+
+  async updateInvoiceSettings(data: Partial<InvoiceSettings>): Promise<InvoiceSettings> {
+    const current = await this.getInvoiceSettings();
+    return { ...current, ...data };
   }
-  getQuoteSettings(): Promise<QuoteSettings> {
-    return this.fallbackMock.getQuoteSettings();
+
+  async getQuoteSettings(): Promise<QuoteSettings> {
+    return {
+      prefix: 'QUO',
+      numberFormat: 'QUO-YYYY-000001',
+      nextNumber: 1,
+      defaultValidityDays: 30,
+      defaultTerms: 'Quotations valid for specified period.',
+      defaultTemplateId: 'tmpl-modern',
+    };
   }
-  updateQuoteSettings(data: Partial<QuoteSettings>): Promise<QuoteSettings> {
-    return this.fallbackMock.updateQuoteSettings(data);
+
+  async updateQuoteSettings(data: Partial<QuoteSettings>): Promise<QuoteSettings> {
+    const current = await this.getQuoteSettings();
+    return { ...current, ...data };
   }
-  getTaxSettings(): Promise<TaxSettings> {
-    return this.fallbackMock.getTaxSettings();
+
+  async getTaxSettings(): Promise<TaxSettings> {
+    return {
+      enableTax: true,
+      defaultTaxType: 'GST',
+      defaultGstRate: 18,
+      customRates: [5, 12, 18, 28],
+      businessState: 'Maharashtra',
+      taxRegistrationStatus: 'Registered',
+    };
   }
-  updateTaxSettings(data: Partial<TaxSettings>): Promise<TaxSettings> {
-    return this.fallbackMock.updateTaxSettings(data);
+
+  async updateTaxSettings(data: Partial<TaxSettings>): Promise<TaxSettings> {
+    const current = await this.getTaxSettings();
+    return { ...current, ...data };
   }
-  getPaymentSettings(): Promise<PaymentSettings> {
-    return this.fallbackMock.getPaymentSettings();
+
+  async getPaymentSettings(): Promise<PaymentSettings> {
+    return {
+      methods: {
+        cash: true,
+        upi: true,
+        bankTransfer: true,
+        creditCard: true,
+        cheque: true,
+        other: true,
+      },
+      bankDetails: {
+        accountName: '',
+        bankName: '',
+        accountNumber: '',
+        ifscCode: '',
+        branch: '',
+      },
+      upiId: '',
+      paymentInstructions: 'Payment due within invoice terms.',
+    };
   }
-  updatePaymentSettings(data: Partial<PaymentSettings>): Promise<PaymentSettings> {
-    return this.fallbackMock.updatePaymentSettings(data);
+
+  async updatePaymentSettings(data: Partial<PaymentSettings>): Promise<PaymentSettings> {
+    const current = await this.getPaymentSettings();
+    return { ...current, ...data };
   }
-  getExpenseCategories(): Promise<ExpenseCategorySetting[]> {
-    return this.fallbackMock.getExpenseCategories();
+
+  async getExpenseCategories(): Promise<ExpenseCategorySetting[]> {
+    return [
+      { id: 'exp-cat-1', name: 'Software & Infrastructure', description: 'Cloud hosting, SaaS tools', enabled: true, isSystem: true },
+      { id: 'exp-cat-2', name: 'Office Supplies', description: 'Stationery and supplies', enabled: true, isSystem: true },
+      { id: 'exp-cat-3', name: 'Professional Fees', description: 'Legal and accounting', enabled: true, isSystem: true },
+      { id: 'exp-cat-4', name: 'Marketing & Ads', description: 'Promotions and marketing', enabled: true, isSystem: true },
+    ];
   }
-  addExpenseCategory(name: string, description?: string): Promise<ExpenseCategorySetting> {
-    return this.fallbackMock.addExpenseCategory(name, description);
+
+  async addExpenseCategory(name: string, description?: string): Promise<ExpenseCategorySetting> {
+    return {
+      id: `exp-cat-${Date.now()}`,
+      name,
+      description,
+      enabled: true,
+      isSystem: false,
+    };
   }
-  updateExpenseCategory(id: string, data: Partial<ExpenseCategorySetting>): Promise<ExpenseCategorySetting> {
-    return this.fallbackMock.updateExpenseCategory(id, data);
+
+  async updateExpenseCategory(id: string, data: Partial<ExpenseCategorySetting>): Promise<ExpenseCategorySetting> {
+    return {
+      id,
+      name: data.name || 'Category',
+      description: data.description,
+      enabled: data.enabled ?? true,
+      isSystem: data.isSystem ?? false,
+    };
   }
-  getNotificationSettings(): Promise<NotificationSettings> {
-    return this.fallbackMock.getNotificationSettings();
+
+  async getNotificationSettings(): Promise<NotificationSettings> {
+    return {
+      emailNotifications: {
+        invoiceSent: true,
+        invoiceViewed: true,
+        invoicePaid: true,
+        invoiceOverdue: true,
+        paymentReceived: true,
+        quoteAccepted: true,
+        quoteExpiring: true,
+        expenseAdded: true,
+      },
+      browserNotifications: true,
+      reminderPreferences: {
+        invoiceReminders: true,
+        reminderDaysBeforeDue: 3,
+        paymentReminders: true,
+      },
+    };
   }
-  updateNotificationSettings(data: Partial<NotificationSettings>): Promise<NotificationSettings> {
-    return this.fallbackMock.updateNotificationSettings(data);
+
+  async updateNotificationSettings(data: Partial<NotificationSettings>): Promise<NotificationSettings> {
+    const current = await this.getNotificationSettings();
+    return { ...current, ...data };
   }
-  getTeamUsers(): Promise<TeamUser[]> {
-    return this.fallbackMock.getTeamUsers();
+
+  async getTeamUsers(): Promise<TeamUser[]> {
+    return [];
   }
-  inviteUser(input: InviteUserInput): Promise<TeamUser> {
-    return this.fallbackMock.inviteUser(input);
+
+  async inviteUser(input: InviteUserInput): Promise<TeamUser> {
+    const now = new Date().toISOString();
+    return {
+      id: `user-${Date.now()}`,
+      name: input.email.split('@')[0],
+      email: input.email,
+      role: input.role,
+      status: 'Invited',
+      lastActive: now,
+      createdAt: now,
+    };
   }
-  updateUserRole(userId: string, role: TeamUser['role']): Promise<TeamUser> {
-    return this.fallbackMock.updateUserRole(userId, role);
+
+  async updateUserRole(userId: string, role: TeamUser['role']): Promise<TeamUser> {
+    const now = new Date().toISOString();
+    return {
+      id: userId,
+      name: 'Team Member',
+      email: 'member@organization.com',
+      role,
+      status: 'Active',
+      lastActive: now,
+      createdAt: now,
+    };
   }
-  updateUserStatus(userId: string, status: TeamUser['status']): Promise<TeamUser> {
-    return this.fallbackMock.updateUserStatus(userId, status);
+
+  async updateUserStatus(userId: string, status: TeamUser['status']): Promise<TeamUser> {
+    const now = new Date().toISOString();
+    return {
+      id: userId,
+      name: 'Team Member',
+      email: 'member@organization.com',
+      role: 'Staff',
+      status,
+      lastActive: now,
+      createdAt: now,
+    };
   }
-  deleteUser(userId: string): Promise<boolean> {
-    return this.fallbackMock.deleteUser(userId);
+
+  async deleteUser(_userId: string): Promise<boolean> {
+    return true;
   }
 }

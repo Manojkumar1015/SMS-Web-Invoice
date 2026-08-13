@@ -2,10 +2,11 @@
 
 import * as React from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { invoiceService, customerService } from '@/services';
+import { invoiceService, customerService, templateService } from '@/services';
 import { Invoice } from '@/types/invoice';
 import { DocumentItem } from '@/types/quote';
 import { Customer } from '@/types/customer';
+import { InvoiceTemplate } from '@/types/template';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,6 +37,12 @@ export default function EditInvoicePage() {
   const [applyRoundOff, setApplyRoundOff] = React.useState(false);
   const [items, setItems] = React.useState<DocumentItem[]>([]);
   const [status, setStatus] = React.useState<Invoice['status']>('draft');
+  const [templates, setTemplates] = React.useState<InvoiceTemplate[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = React.useState<string>('tmpl-white-gold');
+
+  React.useEffect(() => {
+    templateService.getTemplates().then((res) => setTemplates(res.data));
+  }, []);
 
   React.useEffect(() => {
     async function loadInvoiceData() {
@@ -50,6 +57,7 @@ export default function EditInvoicePage() {
         setTerms(inv.terms || '');
         setItems(inv.items || []);
         setStatus(inv.status);
+        if (inv.templateId) setSelectedTemplateId(inv.templateId);
         if (inv.roundOff) setApplyRoundOff(true);
 
         const cust = await customerService.getCustomerById(inv.customerId);
@@ -126,6 +134,7 @@ export default function EditInvoicePage() {
         total: totals.grandTotal,
         notes,
         terms,
+        templateId: selectedTemplateId,
         status,
       });
 

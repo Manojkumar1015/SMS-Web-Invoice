@@ -15,14 +15,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Layers,
-  Percent,
-  UserCheck,
-  Building2,
   PlusCircle,
   FileCheck2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { UserProfileData } from '@/app/app/layout';
 
 export interface NavItem {
   title: string;
@@ -53,6 +51,8 @@ interface SidebarProps {
   mobileOpen?: boolean;
   onMobileClose?: () => void;
   onOpenQuickCreate?: () => void;
+  profile?: UserProfileData | null;
+  loadingProfile?: boolean;
 }
 
 export function Sidebar({
@@ -61,8 +61,25 @@ export function Sidebar({
   mobileOpen = false,
   onMobileClose,
   onOpenQuickCreate,
+  profile,
+  loadingProfile = false,
 }: SidebarProps) {
   const pathname = usePathname();
+
+  const initials = profile?.fullName
+    ? profile.fullName
+        .split(' ')
+        .map((n) => n[0])
+        .filter(Boolean)
+        .join('')
+        .toUpperCase()
+        .slice(0, 2)
+    : profile?.email
+    ? profile.email.slice(0, 2).toUpperCase()
+    : 'U';
+
+  const displayName = profile?.fullName || profile?.email?.split('@')[0] || 'User Profile';
+  const email = profile?.email || '';
 
   const renderNavItem = (item: NavItem) => {
     const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -179,13 +196,19 @@ export function Sidebar({
         {/* User Footer Summary */}
         <div className="p-3 border-t border-slate-800 flex items-center justify-between">
           <div className="flex items-center space-x-2.5 overflow-hidden">
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-800 text-xs font-semibold text-indigo-400 shrink-0 border border-slate-700">
-              AD
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-600 text-xs font-semibold text-white shrink-0">
+              {initials}
             </div>
             {!collapsed && (
               <div className="flex flex-col truncate">
-                <span className="text-xs font-medium text-slate-200 truncate">Admin Account</span>
-                <span className="text-[10px] text-slate-400 truncate">admin@company.com</span>
+                {loadingProfile ? (
+                  <div className="h-3.5 w-24 bg-slate-800 animate-pulse rounded my-1" />
+                ) : (
+                  <>
+                    <span className="text-xs font-medium text-slate-200 truncate">{displayName}</span>
+                    <span className="text-[10px] text-slate-400 truncate">{email}</span>
+                  </>
+                )}
               </div>
             )}
           </div>

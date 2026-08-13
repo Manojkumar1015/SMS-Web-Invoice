@@ -51,6 +51,7 @@ import { formatCurrency } from '@/lib/formatters';
 
 export default function HomePage() {
   const router = useRouter();
+  const [userName, setUserName] = React.useState<string>('');
   const [period, setPeriod] = React.useState<DateRangePeriod>('this_month');
   const [metrics, setMetrics] = React.useState<DashboardMetrics | null>(null);
   const [chartData, setChartData] = React.useState<RevenueChartPoint[]>([]);
@@ -64,6 +65,19 @@ export default function HomePage() {
   // Dialog triggers
   const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] = React.useState<Invoice | null>(null);
   const [expenseDialogOpen, setExpenseDialogOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    fetch('/api/v1/profile', { cache: 'no-store' })
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && json.data) {
+          const name = json.data.fullName || json.data.email?.split('@')[0] || '';
+          const firstName = name ? name.split(' ')[0] : '';
+          setUserName(firstName);
+        }
+      })
+      .catch(() => null);
+  }, []);
 
   const loadData = React.useCallback(async () => {
     setLoading(true);
@@ -163,11 +177,13 @@ export default function HomePage() {
     },
   ];
 
+  const hasChartData = chartData.some((d) => (d.revenue || 0) > 0 || (d.expenses || 0) > 0);
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <PageHeader
-        title="Good morning, Vikram 👋"
+        title={userName ? `Good morning, ${userName} 👋` : 'Good morning 👋'}
         subtitle="Here is your commercial billing and financial performance overview."
         actions={
           <div className="flex flex-wrap items-center gap-2">
@@ -259,30 +275,37 @@ export default function HomePage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="h-72 w-full pt-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#4f46e5" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                  <YAxis
-                    tick={{ fontSize: 11, fill: '#64748b' }}
-                    axisLine={false}
-                    tickLine={false}
-                    tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`}
-                  />
-                  <RechartsTooltip
-                    formatter={(value: any) => [formatCurrency(Number(value)), '']}
-                    contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', color: '#fff', fontSize: '12px' }}
-                  />
-                  <Area type="monotone" dataKey="revenue" stroke="#4f46e5" strokeWidth={2} fillOpacity={1} fill="url(#colorRev)" name="Revenue" />
-                </AreaChart>
-              </ResponsiveContainer>
+            <div className="h-72 w-full pt-4 flex items-center justify-center">
+              {!hasChartData && !loading ? (
+                <div className="text-center p-6 space-y-1">
+                  <p className="text-xs font-semibold text-slate-700">No financial data recorded yet</p>
+                  <p className="text-[11px] text-slate-500">Create your first invoice or payment to see performance trends here.</p>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#4f46e5" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                    <YAxis
+                      tick={{ fontSize: 11, fill: '#64748b' }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`}
+                    />
+                    <RechartsTooltip
+                      formatter={(value: any) => [formatCurrency(Number(value)), '']}
+                      contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', color: '#fff', fontSize: '12px' }}
+                    />
+                    <Area type="monotone" dataKey="revenue" stroke="#4f46e5" strokeWidth={2} fillOpacity={1} fill="url(#colorRev)" name="Revenue" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -294,20 +317,27 @@ export default function HomePage() {
             <CardDescription>Comparison ratio per period</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-72 w-full pt-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v/1000).toFixed(0)}k`} />
-                  <RechartsTooltip
-                    formatter={(value: any) => [formatCurrency(Number(value)), '']}
-                    contentStyle={{ backgroundColor: '#0f172a', borderRadius: '8px', color: '#fff', fontSize: '12px' }}
-                  />
-                  <Bar dataKey="revenue" fill="#4f46e5" radius={[4, 4, 0, 0]} name="Revenue" />
-                  <Bar dataKey="expenses" fill="#ef4444" radius={[4, 4, 0, 0]} name="Expenses" />
-                </BarChart>
-              </ResponsiveContainer>
+            <div className="h-72 w-full pt-4 flex items-center justify-center">
+              {!hasChartData && !loading ? (
+                <div className="text-center p-6 space-y-1">
+                  <p className="text-xs font-semibold text-slate-700">No comparison data yet</p>
+                  <p className="text-[11px] text-slate-500">Record invoices and expenses to view period breakdown.</p>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v/1000).toFixed(0)}k`} />
+                    <RechartsTooltip
+                      formatter={(value: any) => [formatCurrency(Number(value)), '']}
+                      contentStyle={{ backgroundColor: '#0f172a', borderRadius: '8px', color: '#fff', fontSize: '12px' }}
+                    />
+                    <Bar dataKey="revenue" fill="#4f46e5" radius={[4, 4, 0, 0]} name="Revenue" />
+                    <Bar dataKey="expenses" fill="#ef4444" radius={[4, 4, 0, 0]} name="Expenses" />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -334,6 +364,7 @@ export default function HomePage() {
               data={recentInvoices}
               keyExtractor={(inv) => inv.id}
               isLoading={loading}
+              emptyMessage="No invoices generated yet."
             />
           </CardContent>
         </Card>
@@ -357,6 +388,7 @@ export default function HomePage() {
               data={recentPayments}
               keyExtractor={(p) => p.id}
               isLoading={loading}
+              emptyMessage="No payments recorded yet."
             />
           </CardContent>
         </Card>
@@ -372,7 +404,7 @@ export default function HomePage() {
           </CardHeader>
           <CardContent className="space-y-3">
             {outstandingInvoices.length === 0 ? (
-              <p className="text-xs text-muted-foreground text-center py-4">No overdue invoices.</p>
+              <p className="text-xs text-muted-foreground text-center py-6">No outstanding invoices requiring follow-up.</p>
             ) : (
               outstandingInvoices.map((inv) => (
                 <div key={inv.id} className="flex items-center justify-between p-3 rounded-lg bg-surface-hover/60 border border-border text-xs">
@@ -400,18 +432,22 @@ export default function HomePage() {
             <CardDescription>Vendor expenditures</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {recentExpenses.map((exp) => (
-              <div key={exp.id} className="flex items-center justify-between p-3 rounded-lg bg-surface-hover/60 border border-border text-xs">
-                <div>
-                  <h4 className="font-semibold text-foreground">{exp.vendorName}</h4>
-                  <span className="text-[10px] text-muted-foreground">{exp.category}</span>
+            {recentExpenses.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-6">No expense records logged yet.</p>
+            ) : (
+              recentExpenses.map((exp) => (
+                <div key={exp.id} className="flex items-center justify-between p-3 rounded-lg bg-surface-hover/60 border border-border text-xs">
+                  <div>
+                    <h4 className="font-semibold text-foreground">{exp.vendorName}</h4>
+                    <span className="text-[10px] text-muted-foreground">{exp.category}</span>
+                  </div>
+                  <div className="text-right">
+                    <CurrencyDisplay amount={exp.amount} className="font-bold text-foreground block" />
+                    <span className="text-[10px] text-slate-400">{exp.date}</span>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <CurrencyDisplay amount={exp.amount} className="font-bold text-foreground block" />
-                  <span className="text-[10px] text-slate-400">{exp.date}</span>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </CardContent>
         </Card>
 
@@ -422,22 +458,26 @@ export default function HomePage() {
             <CardDescription>Highest value accounts</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {topCustomers.map((cust) => (
-              <div key={cust.id} className="flex items-center justify-between p-2.5 rounded-lg border border-border text-xs">
-                <div className="flex items-center space-x-2.5 truncate">
-                  <CustomerAvatar name={cust.displayName} size="sm" />
-                  <div className="truncate">
-                    <Link href={`/app/customers/${cust.id}`} className="font-semibold text-foreground hover:text-accent truncate block">
-                      {cust.displayName}
-                    </Link>
-                    <span className="text-[10px] text-muted-foreground">Invoiced: {formatCurrency(cust.totalInvoiced)}</span>
+            {topCustomers.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-6">No customer accounts logged yet.</p>
+            ) : (
+              topCustomers.map((cust) => (
+                <div key={cust.id} className="flex items-center justify-between p-2.5 rounded-lg border border-border text-xs">
+                  <div className="flex items-center space-x-2.5 truncate">
+                    <CustomerAvatar name={cust.displayName} size="sm" />
+                    <div className="truncate">
+                      <Link href={`/app/customers/${cust.id}`} className="font-semibold text-foreground hover:text-accent truncate block">
+                        {cust.displayName}
+                      </Link>
+                      <span className="text-[10px] text-muted-foreground">Invoiced: {formatCurrency(cust.totalInvoiced)}</span>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className="text-[10px] text-emerald-600 font-semibold block">Paid: {formatCurrency(cust.paid)}</span>
                   </div>
                 </div>
-                <div className="text-right shrink-0">
-                  <span className="text-[10px] text-emerald-600 font-semibold block">Paid: {formatCurrency(cust.paid)}</span>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </CardContent>
         </Card>
       </div>

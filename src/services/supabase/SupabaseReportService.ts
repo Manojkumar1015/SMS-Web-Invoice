@@ -18,20 +18,60 @@ import { getDateRangeFromPreset } from '@/lib/dateRanges';
 import { roundCurrency } from '@/lib/financial';
 
 export class SupabaseReportService implements IReportService {
-  private async fetchReportsData(startDate?: string, endDate?: string) {
-    const query = new URLSearchParams();
-    if (startDate) query.set('startDate', startDate);
-    if (endDate) query.set('endDate', endDate);
+  private getEmptyReportPayload() {
+    return {
+      summary: {
+        revenue: 0,
+        received: 0,
+        outstanding: 0,
+        expenses: 0,
+        netProfit: 0,
+        paidInvoiceCount: 0,
+        pendingInvoiceCount: 0,
+        overdueInvoiceCount: 0,
+        invoiceCount: 0,
+        expenseCount: 0,
+        customerCount: 0,
+      },
+      chartData: [],
+      detailedReports: {
+        invoiceByStatus: [],
+        paymentByMethod: [],
+        expenseByCategory: [],
+        customerReport: [],
+        taxReport: {
+          taxableAmount: 0,
+          totalGst: 0,
+          slabs: [],
+        },
+      },
+      activity: {
+        recentInvoices: [],
+        recentPayments: [],
+      },
+    };
+  }
 
-    const res = await fetch(`/api/v1/reports?${query.toString()}`, { cache: 'no-store' });
-    if (!res.ok) {
-      throw new Error(`Failed to fetch report metrics: ${res.statusText}`);
+  private async fetchReportsData(startDate?: string, endDate?: string) {
+    try {
+      const query = new URLSearchParams();
+      if (startDate) query.set('startDate', startDate);
+      if (endDate) query.set('endDate', endDate);
+
+      const res = await fetch(`/api/v1/reports?${query.toString()}`, { cache: 'no-store' });
+      if (!res.ok) {
+        console.warn(`Reports API returned status ${res.status}: ${res.statusText}`);
+        return this.getEmptyReportPayload();
+      }
+      const json = await res.json();
+      if (!json.success || !json.data) {
+        return this.getEmptyReportPayload();
+      }
+      return json.data;
+    } catch (err) {
+      console.warn('Failed to fetch reports data:', err);
+      return this.getEmptyReportPayload();
     }
-    const json = await res.json();
-    if (!json.success) {
-      throw new Error(json.error?.message || 'Failed to fetch reports data');
-    }
-    return json.data || {};
   }
 
   async getDashboardMetrics(period?: DateRangePreset): Promise<DashboardMetrics> {
@@ -170,9 +210,13 @@ export class SupabaseReportService implements IReportService {
 export class SupabaseGlobalSearchService implements IGlobalSearchService {
   async search(query: string): Promise<SearchResultItem[]> {
     if (!query || !query.trim()) return [];
-    const res = await fetch(`/api/v1/reports/global-search?q=${encodeURIComponent(query)}`, { cache: 'no-store' });
-    if (!res.ok) return [];
-    const json = await res.json();
-    return json.success ? json.data : [];
+    try {
+      const res = await fetch(`/api/v1/reports/global-search?q=${encodeURIComponent(query)}`, { cache: 'no-store' });
+      if (!res.ok) return [];
+      const json = await res.json();
+      return json.success ? json.data : [];
+    } catch {
+      return [];
+    }
   }
 }

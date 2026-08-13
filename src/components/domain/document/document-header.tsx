@@ -22,7 +22,7 @@ export function DocumentHeader({
   date,
   dueDateOrExpiry,
   status,
-  companyName = 'Acme Software Solutions Pvt Ltd',
+  companyName = 'Commercial Organization',
 }: DocumentHeaderProps) {
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 pb-6 mb-6">
@@ -33,8 +33,7 @@ export function DocumentHeader({
           </div>
           <div>
             <h2 className="text-base font-bold text-slate-900">{companyName}</h2>
-            <p className="text-xs text-slate-500 mt-0.5">GSTIN: 27AAAAA0000A1Z5 • PAN: AAAAA0000A</p>
-            <p className="text-xs text-slate-500">support@smswebinvoice.com • +91 (022) 4900-1000</p>
+            <p className="text-xs text-slate-500 mt-0.5">Commercial Invoice Document</p>
           </div>
         </div>
       </div>

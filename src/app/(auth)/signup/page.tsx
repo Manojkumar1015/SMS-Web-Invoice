@@ -125,7 +125,7 @@ export default function SignupPage() {
                 <Input
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
-                  placeholder="Acme Systems Ltd"
+                  placeholder="e.g. My Organization"
                   className="bg-slate-950 border-slate-800 text-white"
                   required
                 />
@@ -136,7 +136,7 @@ export default function SignupPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@company.com"
+                  placeholder="you@company.com"
                   className="bg-slate-950 border-slate-800 text-white"
                   required
                 />

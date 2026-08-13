@@ -11,7 +11,41 @@ import { FilterBar } from '@/components/ui/filter-bar';
 import { TemplatePreviewCard } from '@/components/domain/template/template-preview-card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { DocumentRenderer } from '@/components/domain/document/document-renderer';
-import { mockInvoices } from '@/data/mockInvoices';
+const SAMPLE_PREVIEW_INVOICE: any = {
+  id: 'preview-inv-001',
+  invoiceNumber: 'INV-2026-001',
+  customerId: 'cust-preview',
+  customerName: 'Commercial Client Account',
+  customerEmail: 'billing@clientcompany.com',
+  date: new Date().toISOString().split('T')[0],
+  dueDate: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+  items: [
+    {
+      id: 'item-1',
+      name: 'Software Consultancy Services',
+      description: 'Monthly architecture design and technical support',
+      quantity: 1,
+      unitPrice: 50000,
+      discount: 0,
+      taxRate: 18,
+      amount: 59000,
+      total: 59000,
+    },
+  ],
+  subtotal: 50000,
+  discount: 0,
+  discountTotal: 0,
+  tax: 9000,
+  taxTotal: 9000,
+  total: 59000,
+  amountPaid: 0,
+  amountDue: 59000,
+  status: 'sent',
+  notes: 'Thank you for your business.',
+  terms: 'Payment due within 30 days of invoice date.',
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+};
 import { LoadingState } from '@/components/ui/loading-state';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Plus, Sparkles, Layers } from 'lucide-react';
@@ -158,7 +192,7 @@ export default function TemplatesPage() {
             <div className="py-4">
               <DocumentRenderer
                 documentType="Invoice"
-                documentData={mockInvoices[0]}
+                documentData={SAMPLE_PREVIEW_INVOICE}
                 templateConfig={previewTemplate.config}
                 sampleMode={true}
               />

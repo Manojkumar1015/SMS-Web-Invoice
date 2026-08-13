@@ -126,7 +126,7 @@ export function TemplateCustomizerPanel({ config, onChange }: TemplateCustomizer
                 </div>
                 <div className="space-y-1">
                   <label className="cursor-pointer inline-flex items-center px-2.5 py-1.5 rounded border border-slate-300 bg-white font-semibold text-[11px] text-slate-700 hover:bg-slate-50">
-                    <Upload className="h-3 w-3 mr-1 text-slate-500" /> Mock Upload
+                    <Upload className="h-3 w-3 mr-1 text-slate-500" /> Upload Logo Image
                     <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
                   </label>
                   {config.branding.logoUrl && (

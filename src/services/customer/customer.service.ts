@@ -57,7 +57,7 @@ export class CustomerService {
       organization_id: context.organization.id,
       customer_number: customerNumber,
       customer_type: input.customerType || 'business',
-      company_name: input.companyName,
+      company_name: input.companyName && input.companyName.trim() ? input.companyName.trim() : input.displayName,
       display_name: input.displayName,
       contact_person: input.contactPerson || null,
       email: input.email || null,

@@ -24,6 +24,9 @@ export default function CustomersPage() {
   const [search, setSearch] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState('all');
   const [loading, setLoading] = React.useState(true);
+  const [page, setPage] = React.useState(1);
+  const [totalItems, setTotalItems] = React.useState(0);
+  const [totalPages, setTotalPages] = React.useState(1);
 
   // Form & Confirm state
   const [formOpen, setFormOpen] = React.useState(false);
@@ -36,11 +39,19 @@ export default function CustomersPage() {
       const res = await customerService.getCustomers({
         search,
         status: statusFilter,
+        page,
+        pageSize: 50,
       });
       setCustomers(res.data);
+      setTotalItems(res.total);
+      setTotalPages(res.totalPages);
     } finally {
       setLoading(false);
     }
+  }, [search, statusFilter, page]);
+
+  React.useEffect(() => {
+    setPage(1);
   }, [search, statusFilter]);
 
   React.useEffect(() => {
@@ -154,7 +165,7 @@ export default function CustomersPage() {
         <SearchInput value={search} onSearchChange={setSearch} placeholder="Search customers by name, GSTIN..." />
         <FilterBar
           options={[
-            { value: 'all', label: 'All Customers', count: customers.length },
+            { value: 'all', label: 'All Customers', count: statusFilter === 'all' ? totalItems : undefined },
             { value: 'active', label: 'Active' },
             { value: 'inactive', label: 'Inactive' },
           ]}
@@ -173,11 +184,11 @@ export default function CustomersPage() {
       />
 
       <Pagination
-        currentPage={1}
-        totalPages={1}
-        totalItems={customers.length}
+        currentPage={page}
+        totalPages={totalPages}
+        totalItems={totalItems}
         pageSize={50}
-        onPageChange={() => {}}
+        onPageChange={setPage}
       />
 
       {/* Add / Edit Form Drawer */}

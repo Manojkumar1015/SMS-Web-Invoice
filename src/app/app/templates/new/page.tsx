@@ -3,16 +3,65 @@
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { templateService } from '@/services';
-import { mockTemplates } from '@/data/mockTemplates';
-import { InvoiceTemplate, TemplateCategory } from '@/types/template';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, ArrowRight, Check, Sparkles, Layers } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+
+const BASE_TEMPLATE_PRESETS = [
+  {
+    id: 'tmpl-modern',
+    name: 'Modern Indigo GST',
+    category: 'modern' as const,
+    description: 'Clean modern theme with indigo accents, GST breakdown, and clear totals.',
+    config: {
+      id: 'tmpl-modern-cfg',
+      name: 'Modern Indigo GST',
+      description: 'Clean modern theme with indigo accents',
+      layout: 'modern' as const,
+      pageSize: 'A4' as const,
+      margin: 'medium' as const,
+      colors: { primary: '#4f46e5', secondary: '#6366f1', text: '#0f172a', background: '#ffffff', accent: '#e0e7ff', tableHeaderBg: '#EEF2FF' },
+      typography: { fontFamily: 'Inter', fontSize: 'normal' as const },
+      header: { showLogo: true, logoPosition: 'left' as const, logoWidth: 120, showCompanyName: true, showCompanyAddress: true, showGstin: true, showPan: true },
+      customerDetails: { showCustomerGstin: true, showBillingAddress: true, showShippingAddress: true },
+      itemsTable: { showHsnSac: true, showDiscount: true, showTaxRate: true, showTaxAmount: true, alternateRowBg: true },
+      taxSection: { gstFormat: 'detailed' as const, showCgstSgst: true, showIgst: true },
+      totals: { showSubtotal: true, showTotalTax: true, showGrandTotal: true, showAmountPaid: true, showBalanceDue: true, highlightBalance: true },
+      paymentDetails: { showBankDetails: true, showUpiQr: true, showPaymentTerms: true },
+      signature: { enableDigitalSignature: true, signatureText: 'Authorized Signatory' },
+      footer: { showFooter: true, footerText: 'Computer generated invoice.', showPageNumbers: true },
+      watermark: { enabled: false, text: 'ORIGINAL', opacity: 0.1 },
+    },
+  },
+  {
+    id: 'tmpl-corporate',
+    name: 'Corporate Navy',
+    category: 'corporate' as const,
+    description: 'Professional navy layout suited for enterprise billing and corporate clients.',
+    config: {
+      id: 'tmpl-corporate-cfg',
+      name: 'Corporate Navy',
+      description: 'Professional navy layout',
+      layout: 'corporate' as const,
+      pageSize: 'A4' as const,
+      margin: 'medium' as const,
+      colors: { primary: '#0f172a', secondary: '#1e293b', text: '#0f172a', background: '#ffffff', accent: '#f1f5f9', tableHeaderBg: '#f1f5f9' },
+      typography: { fontFamily: 'Roboto', fontSize: 'normal' as const },
+      header: { showLogo: true, logoPosition: 'left' as const, logoWidth: 120, showCompanyName: true, showCompanyAddress: true, showGstin: true, showPan: true },
+      customerDetails: { showCustomerGstin: true, showBillingAddress: true, showShippingAddress: true },
+      itemsTable: { showHsnSac: true, showDiscount: true, showTaxRate: true, showTaxAmount: true, alternateRowBg: true },
+      taxSection: { gstFormat: 'detailed' as const, showCgstSgst: true, showIgst: true },
+      totals: { showSubtotal: true, showTotalTax: true, showGrandTotal: true, showAmountPaid: true, showBalanceDue: true, highlightBalance: true },
+      paymentDetails: { showBankDetails: true, showUpiQr: true, showPaymentTerms: true },
+      signature: { enableDigitalSignature: true, signatureText: 'Authorized Signatory' },
+      footer: { showFooter: true, footerText: 'Official Corporate Invoice.', showPageNumbers: true },
+      watermark: { enabled: false, text: 'ORIGINAL', opacity: 0.1 },
+    },
+  },
+];
 
 export default function NewTemplatePage() {
   const router = useRouter();
@@ -23,7 +72,7 @@ export default function NewTemplatePage() {
   const [selectedBaseId, setSelectedBaseId] = React.useState<string>('tmpl-modern');
   const [submitting, setSubmitting] = React.useState(false);
 
-  const selectedBase = mockTemplates.find((t) => t.id === selectedBaseId) || mockTemplates[0];
+  const selectedBase = BASE_TEMPLATE_PRESETS.find((t) => t.id === selectedBaseId) || BASE_TEMPLATE_PRESETS[0];
 
   const handleContinue = async () => {
     if (!name.trim()) {
@@ -33,7 +82,6 @@ export default function NewTemplatePage() {
 
     setSubmitting(true);
     try {
-      // Duplicate selected base template configuration with user's new title
       const baseConfig = JSON.parse(JSON.stringify(selectedBase.config));
       baseConfig.name = name;
       baseConfig.description = description;
@@ -117,8 +165,8 @@ export default function NewTemplatePage() {
               Select an initial layout structure. You can customize colors, fonts, margins, headers, and column settings in the next step.
             </p>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-2">
-              {mockTemplates.map((base) => {
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+              {BASE_TEMPLATE_PRESETS.map((base) => {
                 const isSelected = base.id === selectedBaseId;
                 const primaryColor = base.config.colors?.primary || '#4f46e5';
 
@@ -146,7 +194,6 @@ export default function NewTemplatePage() {
                       <p className="text-[10px] text-slate-500 line-clamp-2">{base.description}</p>
                     </div>
 
-                    {/* Mini Visual Icon Box */}
                     <div className="mt-3 h-20 rounded-lg border border-slate-200 bg-slate-50 p-2 space-y-1 text-[8px]">
                       <div className="h-3 w-full rounded flex items-center justify-between px-1 text-white font-bold" style={{ backgroundColor: primaryColor }}>
                         <span>INVOICE</span>

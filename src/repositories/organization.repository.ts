@@ -6,9 +6,9 @@ export class OrganizationRepository {
     const supabase = createClient();
     const { data, error } = await (supabase
       .from('organizations' as any) as any)
-      .select('id, name, legal_name, email, phone, website, logo_url, address, city, state, postal_code, country, gstin, pan, currency, timezone, date_format, created_at, updated_at')
+      .select('*')
       .eq('id', id)
-      .single();
+      .maybeSingle();
 
     if (error) {
       throw new DatabaseError(`Failed to fetch organization: ${error.message}`);

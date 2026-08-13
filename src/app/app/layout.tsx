@@ -12,11 +12,23 @@ import { ToastContainer } from '@/components/ui/toast';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
+export interface UserProfileData {
+  fullName: string;
+  email: string;
+  organizationName: string;
+  avatarUrl?: string;
+  role?: string;
+}
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = React.useState(false);
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [searchOpen, setSearchOpen] = React.useState(false);
   const [quickCreateOpen, setQuickCreateOpen] = React.useState(false);
+
+  // Profile Context State
+  const [profile, setProfile] = React.useState<UserProfileData | null>(null);
+  const [loadingProfile, setLoadingProfile] = React.useState(true);
 
   // Quick Action Triggered Modals
   const [customerFormOpen, setCustomerFormOpen] = React.useState(false);
@@ -24,6 +36,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [expenseFormOpen, setExpenseFormOpen] = React.useState(false);
 
   const { toasts, toast, dismiss } = useToast();
+
+  React.useEffect(() => {
+    fetch('/api/v1/profile', { cache: 'no-store' })
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && json.data) {
+          setProfile({
+            fullName: json.data.fullName || '',
+            email: json.data.email || '',
+            organizationName: json.data.organizationName || 'My Organization',
+            avatarUrl: json.data.avatarUrl || '',
+            role: json.data.role || 'Owner',
+          });
+        }
+      })
+      .catch((err) => console.warn('Failed to load user profile in layout:', err))
+      .finally(() => setLoadingProfile(false));
+  }, []);
 
   const handleQuickActionSelect = (type: 'invoice' | 'quote' | 'customer' | 'item' | 'payment' | 'expense') => {
     if (type === 'customer') setCustomerFormOpen(true);
@@ -40,6 +70,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         mobileOpen={mobileOpen}
         onMobileClose={() => setMobileOpen(false)}
         onOpenQuickCreate={() => setQuickCreateOpen(true)}
+        profile={profile}
+        loadingProfile={loadingProfile}
       />
 
       {/* Main Content Area */}
@@ -55,6 +87,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           onOpenQuickCreate={() => setQuickCreateOpen(true)}
           onMobileMenuToggle={() => setMobileOpen(!mobileOpen)}
           onQuickActionSelect={handleQuickActionSelect}
+          profile={profile}
+          loadingProfile={loadingProfile}
         />
 
         {/* Page Content Container */}

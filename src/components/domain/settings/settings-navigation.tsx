@@ -4,6 +4,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
+  User,
   Building2,
   Receipt,
   FilePlus,
@@ -23,6 +24,7 @@ interface SettingsNavItem {
 }
 
 const navItems: SettingsNavItem[] = [
+  { title: 'My Profile', href: '/app/settings/profile', icon: User },
   { title: 'Business Profile', href: '/app/settings/business', icon: Building2 },
   { title: 'Invoice Settings', href: '/app/settings/invoice', icon: Receipt },
   { title: 'Quote Settings', href: '/app/settings/quotes', icon: FilePlus },
@@ -43,7 +45,7 @@ export function SettingsNavigation() {
       <div className="flex lg:flex-col overflow-x-auto lg:overflow-x-visible pb-2 lg:pb-0 gap-1 border-b lg:border-b-0 border-slate-200">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname === item.href || (pathname === '/app/settings' && item.href === '/app/settings/business');
+          const isActive = pathname === item.href || (pathname === '/app/settings' && item.href === '/app/settings/profile');
           return (
             <Link
               key={item.href}

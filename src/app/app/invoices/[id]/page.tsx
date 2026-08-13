@@ -44,9 +44,16 @@ export default function InvoiceDetailPage() {
       if (inv) {
         const pmts = await paymentService.getPayments({ search: inv.invoiceNumber });
         setPayments(pmts.data.filter((p) => p.invoiceId === inv.id || p.invoiceNumber === inv.invoiceNumber));
+
+        let tmpl: InvoiceTemplate | null = null;
+        if (inv.templateId) {
+          tmpl = await templateService.getTemplateById(inv.templateId).catch(() => null);
+        }
+        if (!tmpl) {
+          tmpl = await templateService.getDefaultTemplate();
+        }
+        setTemplate(tmpl);
       }
-      const defTmpl = await templateService.getDefaultTemplate();
-      setTemplate(defTmpl);
     } finally {
       setLoading(false);
     }

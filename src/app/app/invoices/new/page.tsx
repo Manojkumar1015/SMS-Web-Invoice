@@ -157,6 +157,7 @@ function NewInvoiceForm() {
       total: totals.grandTotal,
       notes,
       terms,
+      templateId: selectedTemplateId,
       status,
     };
   };
