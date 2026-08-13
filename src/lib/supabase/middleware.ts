@@ -58,6 +58,11 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  const isAuthConfirmation = request.nextUrl.pathname.startsWith('/auth');
+  if (isAuthConfirmation) {
+    return response;
+  }
+
   const isAuthRoute = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/signup');
   const isAppRoute = request.nextUrl.pathname.startsWith('/app');
 

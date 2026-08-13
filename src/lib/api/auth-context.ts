@@ -23,6 +23,58 @@ export interface AuthContext {
   };
 }
 
+export async function ensureUserOrganization(supabase: ReturnType<typeof createClient>, user: any) {
+  if (!user) return null;
+
+  // 1. Ensure Profile exists
+  await (supabase.from('profiles' as any) as any).upsert({
+    id: user.id,
+    full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Admin User',
+    updated_at: new Date().toISOString(),
+  });
+
+  // 2. Check existing membership
+  const { data: existingMember } = await (supabase
+    .from('organization_members' as any) as any)
+    .select('id, organization_id, role, status')
+    .eq('user_id', user.id)
+    .eq('status', 'active')
+    .maybeSingle();
+
+  if (existingMember) {
+    return existingMember;
+  }
+
+  // 3. Create default organization if user has no active membership
+  const companyName =
+    user.user_metadata?.company_name || `${user.email?.split('@')[0] || 'My'} Company`;
+
+  const { data: org } = await (supabase
+    .from('organizations' as any) as any)
+    .insert({
+      name: companyName,
+      email: user.email,
+    })
+    .select('id')
+    .single();
+
+  if (org?.id) {
+    const { data: newMember } = await (supabase.from('organization_members' as any) as any)
+      .insert({
+        organization_id: org.id,
+        user_id: user.id,
+        role: 'owner',
+        status: 'active',
+      })
+      .select('id, organization_id, role, status')
+      .single();
+
+    return newMember || null;
+  }
+
+  return null;
+}
+
 export async function getAuthContext(): Promise<AuthContext> {
   const supabase = createClient();
 
@@ -36,12 +88,17 @@ export async function getAuthContext(): Promise<AuthContext> {
   }
 
   // 1. Query membership
-  const { data: member, error: memberError } = await (supabase
+  let { data: member, error: memberError } = await (supabase
     .from('organization_members' as any) as any)
     .select('id, organization_id, role, status')
     .eq('user_id', user.id)
     .eq('status', 'active')
     .maybeSingle();
+
+  // If authenticated user does not have an active organization membership, auto-provision default organization
+  if (!member && !memberError) {
+    member = await ensureUserOrganization(supabase, user);
+  }
 
   if (memberError || !member) {
     throw new AuthorizationError('User does not belong to an active organization.');

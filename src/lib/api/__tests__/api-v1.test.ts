@@ -91,3 +91,6 @@ export function runPhase6BApiTests() {
 
   return results;
 }
+
+export { runPhase8ApiTests } from './phase-8.test';
+

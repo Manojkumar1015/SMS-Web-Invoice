@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
-import { ArrowRight, AlertCircle } from 'lucide-react';
+import { ArrowRight, AlertCircle, MailCheck } from 'lucide-react';
 import { signupAction } from '../actions';
 import { useToast } from '@/hooks/use-toast';
 
@@ -19,6 +19,7 @@ export default function SignupPage() {
   const [password, setPassword] = React.useState('');
   const [submitting, setSubmitting] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
+  const [confirmationSent, setConfirmationSent] = React.useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,13 +34,22 @@ export default function SignupPage() {
     try {
       const res = await signupAction(formData);
       if (res.success) {
-        toast({
-          title: 'Organization Account Created',
-          description: 'Welcome to SMS Billing SaaS! Setting up your workspace.',
-          variant: 'success',
-        });
-        router.push('/app/home');
-        router.refresh();
+        if (res.requiresConfirmation) {
+          setConfirmationSent(true);
+          toast({
+            title: 'Confirmation Email Sent',
+            description: `A verification link has been sent to ${email}.`,
+            variant: 'info',
+          });
+        } else {
+          toast({
+            title: 'Organization Account Created',
+            description: 'Welcome to SMS Billing SaaS! Setting up your workspace.',
+            variant: 'success',
+          });
+          router.push('/app/home');
+          router.refresh();
+        }
       } else {
         const msg = res.error || 'Failed to create account.';
         setErrorMsg(msg);
@@ -52,6 +62,38 @@ export default function SignupPage() {
       setSubmitting(false);
     }
   };
+
+  if (confirmationSent) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-4">
+        <div className="w-full max-w-md space-y-6">
+          <div className="text-center space-y-2">
+            <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-600 font-extrabold text-2xl text-white shadow-lg mb-2">
+              <MailCheck className="h-6 w-6" />
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight text-white">Check Your Email</h1>
+            <p className="text-xs text-slate-400">Enterprise Commercial Billing Foundation</p>
+          </div>
+
+          <Card className="bg-slate-900 border-slate-800 text-white shadow-2xl">
+            <CardHeader className="text-center">
+              <CardTitle className="text-base text-white">Confirmation Link Sent</CardTitle>
+              <CardDescription className="text-slate-400 text-xs">
+                We sent a verification link to <span className="font-bold text-indigo-400">{email}</span>. Please click the link to confirm your account and launch <strong className="text-slate-200">{companyName}</strong>.
+              </CardDescription>
+            </CardHeader>
+            <CardFooter className="flex flex-col space-y-3 pt-2">
+              <Link href="/login" className="w-full">
+                <Button variant="outline" className="w-full h-10 text-xs font-bold border-slate-700 text-slate-300 hover:bg-slate-800">
+                  Return to Sign In
+                </Button>
+              </Link>
+            </CardFooter>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-4">

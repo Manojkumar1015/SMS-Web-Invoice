@@ -31,50 +31,68 @@ Returns current API operational status.
 Retrieves the authenticated user's active organization business profile.
 
 - **Authentication**: Required (Supabase Auth Cookie / Bearer)
-- **Response `200 OK`**:
-```json
-{
-  "success": true,
-  "data": {
-    "companyName": "Acme Systems Ltd",
-    "legalName": "Acme Systems Private Limited",
-    "email": "contact@acme.com",
-    "phone": "+91 9876543210",
-    "website": "https://acme.com",
-    "address": "Suite 404, Tech Park",
-    "city": "Mumbai",
-    "state": "Maharashtra",
-    "postalCode": "400001",
-    "country": "India",
-    "gstin": "27AAAAA0000A1Z5",
-    "pan": "AAAAA0000A",
-    "currency": "INR",
-    "timezone": "Asia/Kolkata",
-    "dateFormat": "DD/MM/YYYY"
-  }
-}
-```
-- **Error Responses**:
-  - `401 Unauthorized`: User is unauthenticated.
-  - `403 Forbidden`: User does not belong to an active organization.
-
----
 
 ### `PATCH /api/v1/organization`
 Updates organization business profile details.
 
+- **Authentication**: Required (`Owner` or `Admin` role)
+
+---
+
+## 3. Customer Management Endpoints
+
+### `GET /api/v1/customers`
+Returns a paginated list of active organization customers with search and filter support.
+
 - **Authentication**: Required
-- **Authorization**: Required (`Owner` or `Admin` role)
-- **Request Body** (JSON):
-```json
-{
-  "companyName": "Acme Global Systems Ltd",
-  "phone": "+91 9876543211",
-  "gstin": "27AAAAA0000A1Z6"
-}
-```
-- **Response `200 OK`**: Returns updated `BusinessSettings` object.
-- **Error Responses**:
-  - `401 Unauthorized`: Unauthenticated request.
-  - `403 Forbidden`: User role is `Accountant`, `Staff`, or `Viewer`.
-  - `422 Unprocessable Entity`: Zod payload validation failure.
+- **Query Parameters**:
+  - `search` (optional): Filter by name, customer number, email, or phone.
+  - `is_active` (optional, default `true`): Filter active or inactive customers.
+  - `page` (optional, default `1`): Page number.
+  - `pageSize` (optional, default `25`, max `100`): Items per page.
+  - `sortField` (optional, default `created_at`): `display_name`, `customer_number`, `created_at`, `updated_at`.
+  - `sortOrder` (optional, default `desc`): `asc` or `desc`.
+
+### `POST /api/v1/customers`
+Creates a new customer. Automatically generates organization-scoped customer numbers (`CUS-00001`).
+
+- **Authentication**: Required (`Owner`, `Admin`, `Accountant`, or `Staff` role)
+- **Request Body**: `CustomerCreateInput`
+
+### `GET /api/v1/customers/:id`
+Retrieves a specific customer by ID within the authenticated organization.
+
+### `PATCH /api/v1/customers/:id`
+Updates customer details.
+
+### `DELETE /api/v1/customers/:id`
+Soft deletes / archives a customer (`is_active = false`).
+
+---
+
+## 4. Item Management Endpoints
+
+### `GET /api/v1/items`
+Returns a paginated list of active organization inventory items & services.
+
+- **Authentication**: Required
+- **Query Parameters**:
+  - `search` (optional): Filter by item name, item code, SKU, category, or HSN/SAC code.
+  - `category` (optional): Filter by item category.
+  - `is_active` (optional, default `true`): Filter active or inactive items.
+  - `page` (optional, default `1`): Page number.
+  - `pageSize` (optional, default `25`, max `100`): Items per page.
+
+### `POST /api/v1/items`
+Creates a new item or service. Automatically generates organization-scoped item codes (`ITEM-00001`).
+
+- **Authentication**: Required (`Owner`, `Admin`, `Accountant`, or `Staff` role)
+
+### `GET /api/v1/items/:id`
+Retrieves a specific item by ID.
+
+### `PATCH /api/v1/items/:id`
+Updates item details.
+
+### `DELETE /api/v1/items/:id`
+Soft deletes / archives an item (`is_active = false`).

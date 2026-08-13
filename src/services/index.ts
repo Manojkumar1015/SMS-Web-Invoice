@@ -8,24 +8,24 @@ import { IReportService, IGlobalSearchService } from './interfaces/ReportService
 import { ITemplateService } from './interfaces/TemplateService';
 import { ISettingsService } from './interfaces/SettingsService';
 
-import { MockCustomerService } from './mock/MockCustomerService';
-import { MockItemService } from './mock/MockItemService';
-import { MockQuoteService } from './mock/MockQuoteService';
-import { MockInvoiceService } from './mock/MockInvoiceService';
-import { MockPaymentService } from './mock/MockPaymentService';
-import { MockExpenseService } from './mock/MockExpenseService';
-import { MockReportService, MockGlobalSearchService } from './mock/MockReportService';
-import { MockTemplateService } from './mock/MockTemplateService';
+import { SupabaseCustomerService } from './supabase/SupabaseCustomerService';
+import { SupabaseItemService } from './supabase/SupabaseItemService';
+import { SupabaseQuoteService } from './supabase/SupabaseQuoteService';
+import { SupabaseInvoiceService } from './supabase/SupabaseInvoiceService';
+import { SupabasePaymentService } from './supabase/SupabasePaymentService';
+import { SupabaseExpenseService } from './supabase/SupabaseExpenseService';
+import { SupabaseReportService, SupabaseGlobalSearchService } from './supabase/SupabaseReportService';
+import { SupabaseTemplateService } from './supabase/SupabaseTemplateService';
 import { SupabaseSettingsService } from './supabase/SupabaseSettingsService';
 
-// Central Service Registry
-export const customerService: ICustomerService = new MockCustomerService();
-export const itemService: IItemService = new MockItemService();
-export const quoteService: IQuoteService = new MockQuoteService();
-export const invoiceService: IInvoiceService = new MockInvoiceService();
-export const paymentService: IPaymentService = new MockPaymentService();
-export const expenseService: IExpenseService = new MockExpenseService();
-export const reportService: IReportService = new MockReportService();
-export const globalSearchService: IGlobalSearchService = new MockGlobalSearchService();
-export const templateService: ITemplateService = new MockTemplateService();
+// Central Service Registry (Production Web Cloud Backend)
+export const customerService: ICustomerService = new SupabaseCustomerService();
+export const itemService: IItemService = new SupabaseItemService();
+export const quoteService: IQuoteService = new SupabaseQuoteService();
+export const invoiceService: IInvoiceService = new SupabaseInvoiceService();
+export const paymentService: IPaymentService = new SupabasePaymentService();
+export const expenseService: IExpenseService = new SupabaseExpenseService();
+export const reportService: IReportService = new SupabaseReportService();
+export const globalSearchService: IGlobalSearchService = new SupabaseGlobalSearchService();
+export const templateService: ITemplateService = new SupabaseTemplateService();
 export const settingsService: ISettingsService = new SupabaseSettingsService();

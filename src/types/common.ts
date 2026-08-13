@@ -13,6 +13,8 @@ export interface FilterParams {
   paymentStatus?: string;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
+  page?: number;
+  pageSize?: number;
 }
 
 export interface PaginationParams {
