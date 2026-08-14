@@ -42,7 +42,7 @@ const mainNavItems: NavItem[] = [
 
 const configNavItems: NavItem[] = [
   { title: 'Invoice Templates', href: '/app/templates', icon: Layers },
-  { title: 'Business Settings', href: '/app/settings', icon: Settings },
+  { title: 'Business Settings', href: '/app/settings/business', icon: Settings },
 ];
 
 interface SidebarProps {
@@ -82,7 +82,10 @@ export function Sidebar({
   const email = profile?.email || '';
 
   const renderNavItem = (item: NavItem) => {
-    const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+    const isActive =
+      item.href === '/app/settings/business' || item.href === '/app/settings'
+        ? pathname.startsWith('/app/settings') && pathname !== '/app/settings/profile'
+        : pathname === item.href || pathname.startsWith(`${item.href}/`);
     const Icon = item.icon;
 
     const content = (
@@ -196,8 +199,13 @@ export function Sidebar({
         {/* User Footer Summary */}
         <div className="p-3 border-t border-slate-800 flex items-center justify-between">
           <div className="flex items-center space-x-2.5 overflow-hidden">
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-600 text-xs font-semibold text-white shrink-0">
-              {initials}
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-600 text-xs font-semibold text-white shrink-0 overflow-hidden">
+              {profile?.avatarUrl ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img src={profile.avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
+              ) : (
+                initials
+              )}
             </div>
             {!collapsed && (
               <div className="flex flex-col truncate">

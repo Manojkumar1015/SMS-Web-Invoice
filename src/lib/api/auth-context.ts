@@ -26,20 +26,27 @@ export interface AuthContext {
 export async function ensureUserOrganization(supabase: ReturnType<typeof createClient>, user: any) {
   if (!user) return null;
 
-  // 1. Ensure Profile exists
-  const { error: profileErr } = await (supabase.from('profiles' as any) as any).upsert({
-    id: user.id,
-    full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Admin User',
-    updated_at: new Date().toISOString(),
-  });
+  // 1. Ensure Profile exists (only insert if profile does not already exist)
+  const { data: existingProfile } = await (supabase.from('profiles' as any) as any)
+    .select('id')
+    .eq('id', user.id)
+    .maybeSingle();
 
-  if (profileErr) {
-    console.error('Diagnostic [ensureUserOrganization profileErr]:', {
-      message: profileErr.message,
-      code: profileErr.code,
-      details: profileErr.details,
-      hint: profileErr.hint,
+  if (!existingProfile) {
+    const { error: profileErr } = await (supabase.from('profiles' as any) as any).insert({
+      id: user.id,
+      full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Admin User',
+      updated_at: new Date().toISOString(),
     });
+
+    if (profileErr) {
+      console.error('Diagnostic [ensureUserOrganization profileErr]:', {
+        message: profileErr.message,
+        code: profileErr.code,
+        details: profileErr.details,
+        hint: profileErr.hint,
+      });
+    }
   }
 
   // 2. Check existing membership

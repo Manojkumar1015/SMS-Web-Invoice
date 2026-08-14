@@ -19,6 +19,10 @@ export interface DocumentItem {
   discount: number; // rate discount amount
   taxRate: number; // tax percentage e.g. 18
   amount: number; // computed line total
+  classificationId?: string;
+  classificationCode?: string;
+  classificationType?: 'HSN' | 'SAC';
+  hsn?: string;
 }
 
 export interface QuoteActivity {
@@ -73,4 +77,4 @@ export interface Quote {
   updatedAt: string;
 }
 
-export type QuoteCreateInput = Omit<Quote, 'id' | 'createdAt' | 'updatedAt'> & { quoteNumber?: string };
+export type QuoteCreateInput = Omit<Quote, 'id' | 'quoteNumber' | 'createdAt' | 'updatedAt'> & { quoteNumber?: string };

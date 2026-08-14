@@ -76,14 +76,19 @@ export default function TemplateStudioPage() {
     if (!template || !config) return;
     setSubmitting(true);
     try {
-      await templateService.updateTemplate(template.id, {
+      const updated = await templateService.updateTemplate(template.id, {
         name: config.name,
         description: config.description,
         config,
       });
-      toast({ title: 'Template Saved Successfully', description: `Saved changes to "${config.name}".`, variant: 'success' });
-    } catch {
-      toast({ title: 'Error', description: 'Could not save template changes.', variant: 'destructive' });
+      setTemplate(updated);
+      setConfig(updated.config);
+      toast({ title: 'Template Saved Successfully', description: `Saved changes to "${updated.name}".`, variant: 'success' });
+      if (updated.id !== template.id) {
+        router.replace(`/app/templates/${updated.id}/edit`);
+      }
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message || 'Could not save template changes.', variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }

@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
     const created = await service.createInvoice(context, validated as any);
     return successResponse(created, 201, undefined, requestId);
   } catch (error) {
+    console.error('[POST /api/v1/invoices] Error creating invoice:', error);
     return errorResponse(error, requestId);
   }
 }

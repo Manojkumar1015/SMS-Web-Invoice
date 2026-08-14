@@ -64,5 +64,11 @@ export const organizationUpdateSchema = z.object({
   currency: z.enum(['INR', 'USD', 'EUR', 'GBP', 'AED']).optional(),
   timezone: z.string().max(50).optional(),
   dateFormat: z.string().max(20).optional(),
-  logoUrl: z.string().url('Invalid logo URL').optional().or(z.literal('')),
+  logoUrl: z
+    .string()
+    .refine((val) => !val || val.startsWith('http://') || val.startsWith('https://') || val.startsWith('data:image/'), {
+      message: 'Invalid logo URL',
+    })
+    .optional()
+    .or(z.literal('')),
 });

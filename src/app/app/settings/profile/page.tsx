@@ -5,9 +5,8 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { SettingsNavigation } from '@/components/domain/settings/settings-navigation';
 import { LoadingState } from '@/components/ui/loading-state';
-import { User, Mail, Phone, Lock, Save, Shield, Building2 } from 'lucide-react';
+import { User, Mail, Phone, Lock, Save, Shield, Building2, Upload, Trash2, Camera } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function ProfileSettingsPage() {
@@ -32,6 +31,7 @@ export default function ProfileSettingsPage() {
       const res = await fetch('/api/v1/profile', { cache: 'no-store' });
       if (!res.ok) throw new Error('Failed to load profile');
       const json = await res.json();
+      console.log('[DEBUG loadProfile] Response JSON:', json);
       if (json.success && json.data) {
         setUsername(json.data.username || json.data.fullName || '');
         setEmail(json.data.email || '');
@@ -41,7 +41,8 @@ export default function ProfileSettingsPage() {
         setOrganizationName(json.data.organizationName || '');
         setRole(json.data.role || 'Member');
       }
-    } catch {
+    } catch (err) {
+      console.error('[DEBUG loadProfile error]:', err);
       toast({ title: 'Error', description: 'Could not load user profile', variant: 'destructive' });
     } finally {
       setLoading(false);
@@ -51,6 +52,34 @@ export default function ProfileSettingsPage() {
   React.useEffect(() => {
     loadProfile();
   }, [loadProfile]);
+
+  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        toast({ title: 'Invalid Image Format', description: 'Please upload a JPG, PNG, or WebP image file.', variant: 'destructive' });
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        toast({ title: 'File Size Exceeds 5MB Limit', description: 'Please select an image smaller than 5MB.', variant: 'destructive' });
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          setAvatarUrl(reader.result);
+          toast({ title: 'Profile Picture Selected', description: 'Click Save Profile Changes to persist changes.', variant: 'info' });
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveAvatar = () => {
+    setAvatarUrl('');
+    toast({ title: 'Profile Picture Removed', description: 'Reverted to default initials avatar. Click Save Profile Changes to apply.', variant: 'info' });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,14 +92,15 @@ export default function ProfileSettingsPage() {
     setSaving(true);
     try {
       const payload: Record<string, any> = {
-        username,
-        fullName: fullName || username,
-        phone,
+        fullName: fullName.trim(),
+        phone: phone.trim(),
         avatarUrl,
       };
       if (newPassword && newPassword.trim().length >= 6) {
         payload.newPassword = newPassword.trim();
       }
+
+      console.log('[DEBUG handleSubmit] Submitting payload:', payload);
 
       const res = await fetch('/api/v1/profile', {
         method: 'PATCH',
@@ -79,16 +109,27 @@ export default function ProfileSettingsPage() {
       });
 
       const json = await res.json();
+      console.log('[DEBUG handleSubmit] Response status:', res.status, 'JSON:', json);
+
       if (!res.ok || !json.success) {
         throw new Error(json.error?.message || 'Failed to update profile');
       }
 
-      toast({ title: 'Profile Updated', description: 'Your profile changes have been saved.', variant: 'success' });
+      if (json.data) {
+        setFullName(json.data.fullName || '');
+        setPhone(json.data.phone || '');
+        setAvatarUrl(json.data.avatarUrl || '');
+      }
+
+      toast({ title: 'Profile Updated', description: 'Your personal profile changes have been saved successfully.', variant: 'success' });
       setNewPassword('');
       setConfirmPassword('');
-      loadProfile();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('profile-updated'));
+      }
     } catch (error: any) {
-      toast({ title: 'Error', description: error.message || 'Could not update profile', variant: 'destructive' });
+      console.error('[DEBUG handleSubmit error]:', error);
+      toast({ title: 'Error Updating Profile', description: error.message || 'Could not update profile', variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -98,18 +139,26 @@ export default function ProfileSettingsPage() {
     return <LoadingState message="Loading profile settings..." />;
   }
 
+  const initials = fullName
+    ? fullName
+        .split(' ')
+        .map((n) => n[0])
+        .filter(Boolean)
+        .join('')
+        .toUpperCase()
+        .slice(0, 2)
+    : username
+    ? username.slice(0, 2).toUpperCase()
+    : 'U';
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-4xl mx-auto">
       <PageHeader
-        title="Settings"
-        subtitle="Manage your personal profile, organization settings, preferences and security."
+        title="My Profile"
+        subtitle="Manage your personal profile, contact information, avatar picture, and password."
       />
 
-      <div className="flex flex-col lg:flex-row gap-6">
-        <SettingsNavigation />
-
-        <div className="flex-1 space-y-6 max-w-3xl">
-          <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6">
             {/* User Details Card */}
             <Card className="border-slate-200">
               <CardHeader className="pb-4">
@@ -117,9 +166,43 @@ export default function ProfileSettingsPage() {
                   <User className="h-5 w-5 text-indigo-600" />
                   <CardTitle>Personal Profile</CardTitle>
                 </div>
-                <CardDescription>Update your personal account details and preferences.</CardDescription>
+                <CardDescription>Update your personal account details and profile picture.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-6">
+                {/* Profile Picture Upload Section */}
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+                  <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block">Profile Picture</span>
+                  <div className="flex flex-col sm:flex-row items-center gap-4">
+                    <div className="h-20 w-20 rounded-full border-2 border-indigo-600/30 bg-indigo-600 text-white flex items-center justify-center overflow-hidden shrink-0 shadow-sm relative group">
+                      {avatarUrl ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img src={avatarUrl} alt="Profile Avatar" className="h-full w-full object-cover" />
+                      ) : (
+                        <span className="text-xl font-bold">{initials}</span>
+                      )}
+                    </div>
+
+                    <div className="space-y-1.5 text-center sm:text-left">
+                      <div className="flex items-center justify-center sm:justify-start space-x-2">
+                        <label className="cursor-pointer">
+                          <span className="inline-flex items-center px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-bold text-xs hover:bg-indigo-700 transition-colors shadow-2xs">
+                            <Upload className="h-3.5 w-3.5 mr-1.5" /> Upload Picture
+                          </span>
+                          <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleAvatarUpload} className="hidden" />
+                        </label>
+                        {avatarUrl && (
+                          <Button type="button" variant="outline" size="sm" onClick={handleRemoveAvatar} className="text-red-600 hover:bg-red-50 text-xs">
+                            <Trash2 className="h-3.5 w-3.5 mr-1" /> Remove
+                          </Button>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-500">
+                        Supports JPG, PNG or WebP. Maximum file size 5MB.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-1.5">
@@ -129,10 +212,8 @@ export default function ProfileSettingsPage() {
                       <span className="absolute left-3 top-2.5 text-xs text-slate-400 font-semibold font-mono">@</span>
                       <Input
                         value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                        placeholder="e.g. john_doe"
-                        className="pl-7 font-mono font-bold"
-                        required
+                        disabled
+                        className="pl-7 font-mono font-bold bg-slate-50 text-slate-500"
                       />
                     </div>
                   </div>
@@ -234,8 +315,6 @@ export default function ProfileSettingsPage() {
               </Button>
             </div>
           </form>
-        </div>
-      </div>
     </div>
   );
 }

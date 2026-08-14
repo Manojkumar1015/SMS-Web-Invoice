@@ -24,7 +24,6 @@ interface SettingsNavItem {
 }
 
 const navItems: SettingsNavItem[] = [
-  { title: 'My Profile', href: '/app/settings/profile', icon: User },
   { title: 'Business Profile', href: '/app/settings/business', icon: Building2 },
   { title: 'Invoice Settings', href: '/app/settings/invoice', icon: Receipt },
   { title: 'Quote Settings', href: '/app/settings/quotes', icon: FilePlus },

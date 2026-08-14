@@ -24,6 +24,8 @@ import { LoadingState } from '@/components/ui/loading-state';
 import { Plus, Trash2, ArrowLeft, Save, Send, Eye, Layers, Edit } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
+import { SendDocumentDialog, SendDocumentData } from '@/components/domain/document/send-document-dialog';
+
 function NewInvoiceForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -45,16 +47,25 @@ function NewInvoiceForm() {
   const [submitting, setSubmitting] = React.useState(false);
   const [previewOpen, setPreviewOpen] = React.useState(false);
 
+  const [sendDialogOpen, setSendDialogOpen] = React.useState(false);
+  const [savedDocData, setSavedDocData] = React.useState<SendDocumentData | null>(null);
+
+  const templateIdParam = searchParams.get('templateId') || '';
+
   const [templates, setTemplates] = React.useState<InvoiceTemplate[]>([]);
-  const [selectedTemplateId, setSelectedTemplateId] = React.useState<string>('tmpl-modern');
+  const [selectedTemplateId, setSelectedTemplateId] = React.useState<string>(templateIdParam || 'tmpl-modern');
 
   React.useEffect(() => {
     templateService.getTemplates().then((res) => {
       setTemplates(res.data);
-      const def = res.data.find((t) => t.isDefault);
-      if (def) setSelectedTemplateId(def.id);
+      if (templateIdParam && res.data.some((t) => t.id === templateIdParam)) {
+        setSelectedTemplateId(templateIdParam);
+      } else {
+        const def = res.data.find((t) => t.isDefault);
+        if (def) setSelectedTemplateId(def.id);
+      }
     });
-  }, []);
+  }, [templateIdParam]);
 
   const selectedTemplate = templates.find((t) => t.id === selectedTemplateId);
 
@@ -134,9 +145,9 @@ function NewInvoiceForm() {
 
   const totals = calculateDocumentTotals(items, 0, applyRoundOff);
 
-  const buildInvoiceObject = (status: 'draft' | 'sent'): InvoiceCreateInput => {
+  const buildInvoiceObject = (status: 'draft' | 'sent', forPreview = false): InvoiceCreateInput => {
     return {
-      invoiceNumber: 'INV-PREVIEW',
+      invoiceNumber: forPreview ? 'INV-PREVIEW' : undefined,
       quoteId,
       quoteNumber,
       customerId: selectedCustomer?.id || '',
@@ -177,14 +188,33 @@ function NewInvoiceForm() {
     try {
       const input = buildInvoiceObject(status);
       const created = await invoiceService.createInvoice(input);
-      toast({
-        title: status === 'draft' ? 'Invoice Saved as Draft' : 'Invoice Created & Sent',
-        description: `Invoice ${created.invoiceNumber} saved successfully.`,
-        variant: 'success',
-      });
-      router.push(`/app/invoices/${created.id}`);
-    } catch {
-      toast({ title: 'Error', description: 'Could not create invoice.', variant: 'destructive' });
+
+      if (status === 'draft') {
+        toast({
+          title: 'Invoice Saved',
+          description: `Invoice ${created.invoiceNumber} saved successfully.`,
+          variant: 'success',
+        });
+        router.push('/app/invoices');
+      } else {
+        toast({
+          title: 'Invoice Saved',
+          description: `Invoice ${created.invoiceNumber} saved successfully. Select send option below.`,
+          variant: 'success',
+        });
+        setSavedDocData({
+          id: created.id,
+          type: 'Invoice',
+          number: created.invoiceNumber,
+          customerName: created.customerName,
+          customerEmail: created.customerEmail || selectedCustomer.email || '',
+          customerPhone: created.customerPhone || selectedCustomer.phone || '',
+          total: created.total,
+        });
+        setSendDialogOpen(true);
+      }
+    } catch (error: any) {
+      toast({ title: 'Failed to Save Invoice', description: error.message || 'Could not create invoice.', variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }
@@ -208,10 +238,10 @@ function NewInvoiceForm() {
               <Eye className="h-4 w-4 mr-1 text-slate-600" /> Preview
             </Button>
             <Button variant="outline" size="sm" disabled={submitting} onClick={() => handleSave('draft')}>
-              <Save className="h-4 w-4 mr-1 text-slate-600" /> Save Draft
+              <Save className="h-4 w-4 mr-1 text-slate-600" /> {submitting ? 'Saving...' : 'Save'}
             </Button>
             <Button size="sm" disabled={submitting} onClick={() => handleSave('sent')} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold">
-              <Send className="h-4 w-4 mr-1" /> Save & Send
+              <Send className="h-4 w-4 mr-1" /> {submitting ? 'Saving...' : 'Send'}
             </Button>
           </div>
         }
@@ -333,6 +363,10 @@ function NewInvoiceForm() {
                                 unit: catalogItem.unit,
                                 rate: catalogItem.sellingPrice,
                                 taxRate: catalogItem.taxRate,
+                                classificationId: catalogItem.classificationId,
+                                classificationCode: catalogItem.classification?.code || catalogItem.hsnSac,
+                                classificationType: catalogItem.classification?.classificationType,
+                                hsn: catalogItem.classification?.code || catalogItem.hsnSac,
                               });
                             }
                           }}
@@ -484,14 +518,14 @@ function NewInvoiceForm() {
             {selectedTemplate ? (
               <DocumentRenderer
                 documentType="Invoice"
-                documentData={buildInvoiceObject('draft') as any}
+                documentData={buildInvoiceObject('draft', true) as any}
                 templateConfig={selectedTemplate.config}
                 sampleMode={true}
               />
             ) : (
               <DocumentPreview
                 documentType="Invoice"
-                documentData={buildInvoiceObject('draft') as any}
+                documentData={buildInvoiceObject('draft', true) as any}
               />
             )}
           </div>
@@ -502,6 +536,14 @@ function NewInvoiceForm() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Send Document Dialog */}
+      <SendDocumentDialog
+        open={sendDialogOpen}
+        onOpenChange={setSendDialogOpen}
+        document={savedDocData}
+        onSuccessRedirect={() => router.push('/app/invoices')}
+      />
     </div>
   );
 }

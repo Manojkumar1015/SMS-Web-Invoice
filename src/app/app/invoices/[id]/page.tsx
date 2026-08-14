@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { invoiceService, paymentService, templateService } from '@/services';
+import { invoiceService, paymentService, templateService, settingsService } from '@/services';
 import { Invoice } from '@/types/invoice';
 import { Payment } from '@/types/payment';
 import { InvoiceTemplate } from '@/types/template';
@@ -23,6 +23,8 @@ import { Edit, Copy, Download, Printer, Send, CreditCard, Ban, ArrowLeft, Histor
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useToast } from '@/hooks/use-toast';
 
+import { SendDocumentDialog } from '@/components/domain/document/send-document-dialog';
+
 export default function InvoiceDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -34,6 +36,7 @@ export default function InvoiceDetailPage() {
   const [loading, setLoading] = React.useState(true);
   const [paymentDialogOpen, setPaymentDialogOpen] = React.useState(false);
   const [cancellingInvoice, setCancellingInvoice] = React.useState(false);
+  const [sendDialogOpen, setSendDialogOpen] = React.useState(false);
   const [template, setTemplate] = React.useState<InvoiceTemplate | null>(null);
 
   const loadInvoiceData = React.useCallback(async () => {
@@ -49,8 +52,37 @@ export default function InvoiceDetailPage() {
         if (inv.templateId) {
           tmpl = await templateService.getTemplateById(inv.templateId).catch(() => null);
         }
-        if (!tmpl) {
-          tmpl = await templateService.getDefaultTemplate();
+        const biz = await settingsService.getBusinessSettings().catch(() => null);
+        if (tmpl && biz) {
+          tmpl = {
+            ...tmpl,
+            config: {
+              ...tmpl.config,
+              branding: {
+                ...tmpl.config.branding,
+                companyName: (biz.companyName && biz.companyName !== 'My Organization') ? biz.companyName : tmpl.config.branding.companyName,
+                companyGstin: biz.gstin || '',
+                companyPan: biz.pan || '',
+                companyAddress: [biz.address, biz.city, biz.state, biz.postalCode].filter(Boolean).join(', '),
+                companyPhone: biz.phone || '',
+                companyEmail: biz.email || '',
+                logoUrl: biz.logoUrl || undefined,
+              },
+              payment: {
+                ...tmpl.config.payment,
+                showBankDetails: true,
+                bankName: biz.bankName || '',
+                accountName: biz.accountName || biz.companyName || '',
+                accountNumber: biz.accountNumber || '',
+                ifscCode: biz.ifscCode || '',
+                branchName: biz.branch || '',
+              },
+              footer: {
+                ...tmpl.config.footer,
+                text: `${biz.companyName || 'SMS Billing'} • Official Tax Invoice`,
+              },
+            },
+          };
         }
         setTemplate(tmpl);
       }
@@ -76,13 +108,7 @@ export default function InvoiceDetailPage() {
 
   const handleSend = async () => {
     if (!invoice) return;
-    try {
-      await invoiceService.sendInvoice(invoice.id);
-      toast({ title: 'Invoice Sent', description: `Emailed invoice copy to ${invoice.customerEmail}`, variant: 'info' });
-      loadInvoiceData();
-    } catch {
-      toast({ title: 'Error', description: 'Could not send invoice.', variant: 'destructive' });
-    }
+    setSendDialogOpen(true);
   };
 
   const handleCancel = async () => {
@@ -347,6 +373,23 @@ export default function InvoiceDetailPage() {
           confirmLabel="Cancel Invoice"
           variant="destructive"
           onConfirm={handleCancel}
+        />
+      )}
+
+      {/* Send Document Dialog */}
+      {sendDialogOpen && invoice && (
+        <SendDocumentDialog
+          open={sendDialogOpen}
+          onOpenChange={setSendDialogOpen}
+          document={{
+            id: invoice.id,
+            type: 'Invoice',
+            number: invoice.invoiceNumber,
+            customerName: invoice.customerName,
+            customerEmail: invoice.customerEmail,
+            customerPhone: invoice.customerPhone,
+            total: invoice.total,
+          }}
         />
       )}
     </div>

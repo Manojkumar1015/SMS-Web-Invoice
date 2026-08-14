@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
     const created = await service.createQuote(context, validated as any);
     return successResponse(created, 201, undefined, requestId);
   } catch (error) {
+    console.error('[POST /api/v1/quotes] Error creating quote:', error);
     return errorResponse(error, requestId);
   }
 }

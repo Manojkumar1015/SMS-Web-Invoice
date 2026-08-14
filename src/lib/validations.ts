@@ -46,8 +46,11 @@ export const customerFormSchema = z.object({
 
 export const itemFormSchema = z.object({
   name: z.string().min(1, 'Item name is required'),
-  sku: z.string().min(1, 'SKU code is required'),
-  type: z.enum(['product', 'service']),
+  sku: z.string().optional().or(z.literal('')),
+  type: z.enum(['product', 'service', 'Product', 'Service']).default('product'),
+  itemType: z.enum(['Product', 'Service']).optional(),
+  category: z.string().optional().or(z.literal('')),
+  classificationId: z.string().optional().or(z.literal('')),
   description: z.string().optional(),
   unit: z.string().min(1, 'Unit of measurement is required'),
   sellingPrice: z.coerce.number().min(0, 'Price must be positive'),

@@ -208,8 +208,13 @@ export function TopNav({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="h-8 px-1.5 flex items-center space-x-2 hover:bg-surface-hover">
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-600 text-xs font-semibold text-white">
-                  {initials}
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-600 text-xs font-semibold text-white overflow-hidden shrink-0">
+                  {profile?.avatarUrl ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img src={profile.avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
+                  ) : (
+                    initials
+                  )}
                 </div>
                 <span className="hidden md:inline text-xs font-medium text-foreground">{displayName}</span>
                 <ChevronDown className="h-3 w-3 opacity-50" />
@@ -225,12 +230,6 @@ export function TopNav({
                 <DropdownMenuItem className="cursor-pointer">
                   <User className="h-4 w-4 mr-2" />
                   My Profile
-                </DropdownMenuItem>
-              </Link>
-              <Link href="/app/settings/business">
-                <DropdownMenuItem className="cursor-pointer">
-                  <Settings className="h-4 w-4 mr-2" />
-                  Account Settings
                 </DropdownMenuItem>
               </Link>
               <DropdownMenuSeparator />

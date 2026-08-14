@@ -19,6 +19,11 @@ export interface BusinessSettings {
   timeFormat: string;
   logoUrl?: string;
   logoName?: string;
+  bankName?: string;
+  accountName?: string;
+  accountNumber?: string;
+  ifscCode?: string;
+  branch?: string;
 }
 
 export interface InvoiceSettings {

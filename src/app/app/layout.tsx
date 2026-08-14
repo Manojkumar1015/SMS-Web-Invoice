@@ -38,7 +38,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const { toasts, toast, dismiss } = useToast();
 
-  React.useEffect(() => {
+  const loadProfileData = React.useCallback(() => {
     fetch('/api/v1/profile', { cache: 'no-store' })
       .then((res) => res.json())
       .then((json) => {
@@ -56,6 +56,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       .catch((err) => console.warn('Failed to load user profile in layout:', err))
       .finally(() => setLoadingProfile(false));
   }, []);
+
+  React.useEffect(() => {
+    loadProfileData();
+
+    const handleUpdate = () => loadProfileData();
+    window.addEventListener('profile-updated', handleUpdate);
+    window.addEventListener('organization-updated', handleUpdate);
+
+    return () => {
+      window.removeEventListener('profile-updated', handleUpdate);
+      window.removeEventListener('organization-updated', handleUpdate);
+    };
+  }, [loadProfileData]);
 
   const handleQuickActionSelect = (type: 'invoice' | 'quote' | 'customer' | 'item' | 'payment' | 'expense') => {
     if (type === 'customer') setCustomerFormOpen(true);

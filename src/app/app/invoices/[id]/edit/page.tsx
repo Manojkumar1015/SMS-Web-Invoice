@@ -174,8 +174,8 @@ export default function EditInvoicePage() {
 
       toast({ title: 'Invoice Updated', description: 'Changes saved successfully.', variant: 'success' });
       router.push(`/app/invoices/${invoiceId}`);
-    } catch {
-      toast({ title: 'Error', description: 'Could not update invoice.', variant: 'destructive' });
+    } catch (error: any) {
+      toast({ title: 'Failed to Update Invoice', description: error.message || 'Could not update invoice.', variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }

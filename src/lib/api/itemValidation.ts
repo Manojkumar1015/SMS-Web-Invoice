@@ -3,7 +3,10 @@ import { z } from 'zod';
 export const itemCreateSchema = z.object({
   name: z.string().min(1, 'Item name is required').max(150),
   sku: z.string().max(50).optional().or(z.literal('')),
-  type: z.enum(['product', 'service']).default('product'),
+  type: z.enum(['product', 'service', 'Product', 'Service']).default('product'),
+  itemType: z.enum(['Product', 'Service']).optional(),
+  category: z.string().max(100).optional().or(z.literal('')),
+  classificationId: z.string().uuid().nullable().optional().or(z.literal('')),
   description: z.string().max(500).optional().or(z.literal('')),
   unit: z.string().min(1, 'Unit is required').max(20).default('pcs'),
   sellingPrice: z.number().min(0, 'Selling price must be greater than or equal to 0'),

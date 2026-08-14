@@ -45,6 +45,7 @@ export async function GET(request: NextRequest) {
     const meta = buildPaginationMeta(page, pageSize, total);
     return successResponse(data, 200, meta, requestId);
   } catch (error) {
+    console.error('[API /api/v1/items ERROR]', error);
     return errorResponse(error, requestId);
   }
 }

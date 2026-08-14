@@ -20,6 +20,8 @@ import { Plus, Trash2, ArrowLeft, Save, Send, Eye } from 'lucide-react';
 import { LoadingState } from '@/components/ui/loading-state';
 import { useToast } from '@/hooks/use-toast';
 
+import { SendDocumentDialog, SendDocumentData } from '@/components/domain/document/send-document-dialog';
+
 function NewQuoteForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -36,6 +38,9 @@ function NewQuoteForm() {
   const [terms, setTerms] = React.useState('1. Quote valid for 30 days from issuance.\n2. 18% GST applicable as per tax regulations.\n3. Payment terms as agreed.');
   const [submitting, setSubmitting] = React.useState(false);
   const [previewOpen, setPreviewOpen] = React.useState(false);
+
+  const [sendDialogOpen, setSendDialogOpen] = React.useState(false);
+  const [savedDocData, setSavedDocData] = React.useState<SendDocumentData | null>(null);
 
   const [items, setItems] = React.useState<DocumentItem[]>([
     {
@@ -98,9 +103,9 @@ function NewQuoteForm() {
   // Document Totals using isolated calculations module
   const totals = calculateDocumentTotals(items);
 
-  const buildQuoteObject = (status: 'draft' | 'sent'): QuoteCreateInput => {
+  const buildQuoteObject = (status: 'draft' | 'sent', forPreview = false): QuoteCreateInput => {
     return {
-      quoteNumber: 'QUO-PREVIEW',
+      quoteNumber: forPreview ? 'QUO-PREVIEW' : undefined,
       customerId: selectedCustomer?.id || '',
       customerName: selectedCustomer?.displayName || 'Select Customer',
       customerEmail: selectedCustomer?.email || '',
@@ -137,14 +142,33 @@ function NewQuoteForm() {
     try {
       const input = buildQuoteObject(status);
       const created = await quoteService.createQuote(input);
-      toast({
-        title: status === 'draft' ? 'Quote Saved as Draft' : 'Quote Created & Sent',
-        description: `Quote ${created.quoteNumber} created successfully.`,
-        variant: 'success',
-      });
-      router.push(`/app/quotes/${created.id}`);
-    } catch {
-      toast({ title: 'Error', description: 'Could not save quotation.', variant: 'destructive' });
+
+      if (status === 'draft') {
+        toast({
+          title: 'Quote Saved',
+          description: `Quote ${created.quoteNumber} created successfully.`,
+          variant: 'success',
+        });
+        router.push('/app/quotes');
+      } else {
+        toast({
+          title: 'Quote Saved',
+          description: `Quote ${created.quoteNumber} saved successfully. Select send option below.`,
+          variant: 'success',
+        });
+        setSavedDocData({
+          id: created.id,
+          type: 'Quote',
+          number: created.quoteNumber,
+          customerName: created.customerName,
+          customerEmail: created.customerEmail || selectedCustomer.email || '',
+          customerPhone: created.customerPhone || selectedCustomer.phone || '',
+          total: created.total,
+        });
+        setSendDialogOpen(true);
+      }
+    } catch (error: any) {
+      toast({ title: 'Failed to Save Quote', description: error.message || 'Could not save quotation.', variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }
@@ -168,10 +192,10 @@ function NewQuoteForm() {
               <Eye className="h-4 w-4 mr-1 text-slate-600" /> Preview
             </Button>
             <Button variant="outline" size="sm" disabled={submitting} onClick={() => handleSave('draft')}>
-              <Save className="h-4 w-4 mr-1 text-slate-600" /> Save Draft
+              <Save className="h-4 w-4 mr-1 text-slate-600" /> {submitting ? 'Saving...' : 'Save'}
             </Button>
-            <Button size="sm" disabled={submitting} onClick={() => handleSave('sent')} className="bg-indigo-600 hover:bg-indigo-700 text-white">
-              <Send className="h-4 w-4 mr-1" /> Save & Send
+            <Button size="sm" disabled={submitting} onClick={() => handleSave('sent')} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold">
+              <Send className="h-4 w-4 mr-1" /> {submitting ? 'Saving...' : 'Send'}
             </Button>
           </div>
         }
@@ -259,6 +283,10 @@ function NewQuoteForm() {
                                 unit: catalogItem.unit,
                                 rate: catalogItem.sellingPrice,
                                 taxRate: catalogItem.taxRate,
+                                classificationId: catalogItem.classificationId,
+                                classificationCode: catalogItem.classification?.code || catalogItem.hsnSac,
+                                classificationType: catalogItem.classification?.classificationType,
+                                hsn: catalogItem.classification?.code || catalogItem.hsnSac,
                               });
                             }
                           }}
@@ -379,7 +407,7 @@ function NewQuoteForm() {
           <div className="py-4">
             <DocumentPreview
               documentType="Quote"
-              documentData={buildQuoteObject('draft') as any}
+              documentData={buildQuoteObject('draft', true) as any}
             />
           </div>
           <DialogFooter>
@@ -389,6 +417,14 @@ function NewQuoteForm() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Send Document Dialog */}
+      <SendDocumentDialog
+        open={sendDialogOpen}
+        onOpenChange={setSendDialogOpen}
+        document={savedDocData}
+        onSuccessRedirect={() => router.push('/app/quotes')}
+      />
     </div>
   );
 }

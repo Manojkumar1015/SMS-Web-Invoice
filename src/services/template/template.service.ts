@@ -65,7 +65,7 @@ export class TemplateService {
       .map((sys) => (isAnyDefaultInDb ? { ...sys, isDefault: false } : sys))
       .filter((sys) => !dbIds.has(sys.id));
 
-    let result = [...dbTemplates, ...systemTemplates];
+    let result = [...dbTemplates, ...systemTemplates].slice(0, 4);
 
     if (options?.search) {
       const q = options.search.toLowerCase().trim();

@@ -27,6 +27,11 @@ export class OrganizationService {
       dateFormat: org?.date_format || 'DD/MM/YYYY',
       timeFormat: '12-hour (hh:mm A)',
       logoUrl: org?.logo_url || undefined,
+      bankName: org?.bank_name || '',
+      accountName: org?.account_name || '',
+      accountNumber: org?.account_number || '',
+      ifscCode: org?.ifsc_code || '',
+      branch: org?.branch || '',
     };
   }
 
@@ -55,6 +60,11 @@ export class OrganizationService {
     if (updates.timezone !== undefined) payload.timezone = updates.timezone;
     if (updates.dateFormat !== undefined) payload.date_format = updates.dateFormat;
     if (updates.logoUrl !== undefined) payload.logo_url = updates.logoUrl;
+    if (updates.bankName !== undefined) payload.bank_name = updates.bankName;
+    if (updates.accountName !== undefined) payload.account_name = updates.accountName;
+    if (updates.accountNumber !== undefined) payload.account_number = updates.accountNumber;
+    if (updates.ifscCode !== undefined) payload.ifsc_code = updates.ifscCode;
+    if (updates.branch !== undefined) payload.branch = updates.branch;
 
     const updatedOrg = await this.repo.update(context.organization.id, payload);
 
@@ -86,6 +96,11 @@ export class OrganizationService {
       dateFormat: updatedOrg.date_format || 'DD/MM/YYYY',
       timeFormat: '12-hour (hh:mm A)',
       logoUrl: updatedOrg.logo_url || undefined,
+      bankName: updatedOrg.bank_name || '',
+      accountName: updatedOrg.account_name || '',
+      accountNumber: updatedOrg.account_number || '',
+      ifscCode: updatedOrg.ifsc_code || '',
+      branch: updatedOrg.branch || '',
     };
   }
 }

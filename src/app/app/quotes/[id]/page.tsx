@@ -18,6 +18,8 @@ import { ErrorState } from '@/components/ui/error-state';
 import { Edit, Copy, Download, Printer, Send, CheckCircle, XCircle, ArrowRight, ArrowLeft, History, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
+import { SendDocumentDialog } from '@/components/domain/document/send-document-dialog';
+
 export default function QuoteDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -27,6 +29,7 @@ export default function QuoteDetailPage() {
   const [quote, setQuote] = React.useState<Quote | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [convertDialogOpen, setConvertDialogOpen] = React.useState(false);
+  const [sendDialogOpen, setSendDialogOpen] = React.useState(false);
 
   const loadQuote = React.useCallback(async () => {
     setLoading(true);
@@ -112,10 +115,7 @@ export default function QuoteDetailPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
-                handleStatusChange('sent');
-                toast({ title: 'Quote Emailed', description: `Emailed PDF copy to ${quote.customerEmail}`, variant: 'info' });
-              }}
+              onClick={() => setSendDialogOpen(true)}
             >
               <Send className="h-4 w-4 mr-1" /> Send
             </Button>

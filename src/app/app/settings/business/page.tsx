@@ -25,6 +25,9 @@ export default function BusinessSettingsPage() {
       .getBusinessSettings()
       .then((data) => {
         setSettings(data);
+        if (data.logoUrl) {
+          setLogoPreview(data.logoUrl);
+        }
       })
       .catch((err) => {
         console.warn('Could not load business settings:', err);
@@ -39,8 +42,15 @@ export default function BusinessSettingsPage() {
     if (!settings) return;
     setSaving(true);
     try {
-      await settingsService.updateBusinessSettings(settings);
+      const updated = await settingsService.updateBusinessSettings(settings);
+      setSettings(updated);
+      if (updated.logoUrl) {
+        setLogoPreview(updated.logoUrl);
+      }
       toast({ title: 'Business Settings Saved', description: 'Organization profile updated successfully.', variant: 'success' });
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('organization-updated'));
+      }
     } catch {
       toast({ title: 'Error', description: 'Could not update business settings.', variant: 'destructive' });
     } finally {
@@ -51,21 +61,31 @@ export default function BusinessSettingsPage() {
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const url = URL.createObjectURL(file);
-      setLogoPreview(url);
-      if (settings) {
-        setSettings({ ...settings, logoName: file.name });
+      if (file.size > 5 * 1024 * 1024) {
+        toast({ title: 'File Too Large', description: 'Please select an image smaller than 5MB.', variant: 'destructive' });
+        return;
       }
-      toast({ title: 'Logo Uploaded', description: 'Logo preview updated.', variant: 'info' });
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          const dataUrl = reader.result;
+          setLogoPreview(dataUrl);
+          if (settings) {
+            setSettings({ ...settings, logoUrl: dataUrl, logoName: file.name });
+          }
+          toast({ title: 'Logo Selected', description: 'Logo preview updated. Click Save Changes to save.', variant: 'info' });
+        }
+      };
+      reader.readAsDataURL(file);
     }
   };
 
   const handleRemoveLogo = () => {
     setLogoPreview(null);
     if (settings) {
-      setSettings({ ...settings, logoName: undefined });
+      setSettings({ ...settings, logoUrl: '', logoName: undefined });
     }
-    toast({ title: 'Logo Removed', description: 'Reverted to company name header text.', variant: 'info' });
+    toast({ title: 'Logo Removed', description: 'Reverted to company name header text. Click Save Changes to apply.', variant: 'info' });
   };
 
   if (loading || !settings) return <LoadingState message="Loading business profile..." />;
@@ -301,6 +321,61 @@ export default function BusinessSettingsPage() {
                           <SelectItem value="YYYY-MM-DD">YYYY-MM-DD (e.g. 2026-02-11)</SelectItem>
                         </SelectContent>
                       </Select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Organization Payment & Banking Details */}
+                <div className="space-y-3 pt-2 border-t border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-800 block text-xs">Payment & Banking Details</span>
+                    <span className="text-[11px] text-slate-400">Displayed on official invoices and PDF downloads</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="font-bold text-slate-700 mb-1 block">Bank Name</label>
+                      <Input
+                        placeholder="e.g. HDFC Bank, ICICI Bank, SBI"
+                        value={settings.bankName || ''}
+                        onChange={(e) => setSettings({ ...settings, bankName: e.target.value })}
+                        className="h-9 text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-bold text-slate-700 mb-1 block">Account Holder Name</label>
+                      <Input
+                        placeholder="e.g. Acme Services Pvt Ltd"
+                        value={settings.accountName || ''}
+                        onChange={(e) => setSettings({ ...settings, accountName: e.target.value })}
+                        className="h-9 text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-bold text-slate-700 mb-1 block">Account Number</label>
+                      <Input
+                        placeholder="e.g. 50200012345678"
+                        value={settings.accountNumber || ''}
+                        onChange={(e) => setSettings({ ...settings, accountNumber: e.target.value })}
+                        className="h-9 text-xs font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-bold text-slate-700 mb-1 block">IFSC Code</label>
+                      <Input
+                        placeholder="e.g. HDFC0000123"
+                        value={settings.ifscCode || ''}
+                        onChange={(e) => setSettings({ ...settings, ifscCode: e.target.value.toUpperCase() })}
+                        className="h-9 text-xs font-mono uppercase"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="font-bold text-slate-700 mb-1 block">Branch Name & City</label>
+                      <Input
+                        placeholder="e.g. Connaught Place Branch, New Delhi"
+                        value={settings.branch || ''}
+                        onChange={(e) => setSettings({ ...settings, branch: e.target.value })}
+                        className="h-9 text-xs"
+                      />
                     </div>
                   </div>
                 </div>

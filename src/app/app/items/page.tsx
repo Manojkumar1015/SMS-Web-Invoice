@@ -14,8 +14,10 @@ import { ItemTypeBadge } from '@/components/domain/item/item-type-badge';
 import { ItemFormDialog } from '@/components/domain/item/item-form-dialog';
 import { PackagePlus, Edit, Trash2 } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { useToast } from '@/hooks/use-toast';
 
 export default function ItemsPage() {
+  const { toast } = useToast();
   const [items, setItems] = React.useState<Item[]>([]);
   const [search, setSearch] = React.useState('');
   const [typeFilter, setTypeFilter] = React.useState('all');
@@ -47,14 +49,43 @@ export default function ItemsPage() {
 
   const handleDelete = async () => {
     if (!deletingItem) return;
-    await itemService.deleteItem(deletingItem.id);
-    setDeletingItem(null);
-    fetchItems();
+    try {
+      await itemService.deleteItem(deletingItem.id);
+      toast({
+        title: 'Item Deleted',
+        description: `${deletingItem.name} has been removed from catalog.`,
+        variant: 'success',
+      });
+      setItems((prev) => prev.filter((i) => i.id !== deletingItem.id));
+      setDeletingItem(null);
+      fetchItems();
+    } catch (err: any) {
+      toast({
+        title: 'Delete Failed',
+        description: err?.message || 'Could not delete item.',
+        variant: 'destructive',
+      });
+    }
   };
+
+  const [userRole, setUserRole] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    fetch('/api/v1/profile')
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && json.data?.role) {
+          setUserRole(json.data.role);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const canDelete = userRole === 'Owner' || userRole === 'Admin';
 
   const columns: Column<Item>[] = [
     {
-      header: 'Item / Service Name',
+      header: 'Item / Service',
       cell: (item) => (
         <div>
           <div className="font-semibold text-foreground">{item.name}</div>
@@ -64,23 +95,38 @@ export default function ItemsPage() {
         </div>
       ),
     },
+    { header: 'Type', cell: (item) => <ItemTypeBadge type={item.itemType || item.type} /> },
     {
-      header: 'SKU',
-      cell: (item) => <span className="font-mono text-xs font-medium">{item.sku}</span>,
+      header: 'Category',
+      cell: (item) => <span className="text-xs font-medium text-slate-600">{item.category || 'General'}</span>,
     },
-    { header: 'Type', cell: (item) => <ItemTypeBadge type={item.type} /> },
     {
-      header: 'Selling Price',
+      header: 'HSN/SAC',
+      cell: (item) => {
+        const itemType = item.itemType || (item.type === 'service' ? 'Service' : 'Product');
+        const code = item.classification?.code || item.hsnSac;
+        if (code) {
+          const typeLabel = item.classification?.classificationType || (itemType === 'Product' ? 'HSN' : 'SAC');
+          return <span className="font-mono text-xs font-semibold text-indigo-700">{typeLabel} {code}</span>;
+        }
+        if (itemType === 'Service') {
+          return <span className="text-xs text-slate-400 italic">SAC — Not configured</span>;
+        }
+        return <span className="text-xs text-slate-400">—</span>;
+      },
+    },
+    {
+      header: 'Tax',
+      cell: (item) => <span className="font-semibold text-emerald-600">{item.taxRate}%</span>,
+    },
+    {
+      header: 'Price',
       cell: (item) => (
         <div>
           <CurrencyDisplay amount={item.sellingPrice} className="font-bold text-foreground" />
           <span className="text-[10px] text-slate-400"> / {item.unit}</span>
         </div>
       ),
-    },
-    {
-      header: 'Tax Rate',
-      cell: (item) => <span className="font-semibold text-emerald-600">{item.taxRate}% GST</span>,
     },
     { header: 'Status', cell: (item) => <StatusBadge status={item.status} /> },
     {
@@ -98,14 +144,16 @@ export default function ItemsPage() {
           >
             <Edit className="h-3.5 w-3.5 text-slate-600" />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-red-600 hover:text-red-700"
-            onClick={() => setDeletingItem(item)}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
+          {canDelete && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-red-600 hover:text-red-700"
+              onClick={() => setDeletingItem(item)}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          )}
         </div>
       ),
     },

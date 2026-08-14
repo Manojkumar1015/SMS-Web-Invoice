@@ -161,8 +161,8 @@ export default function EditQuotePage() {
 
       toast({ title: 'Quote Updated', description: 'Changes saved successfully.', variant: 'success' });
       router.push(`/app/quotes/${quoteId}`);
-    } catch {
-      toast({ title: 'Error', description: 'Could not update quotation.', variant: 'destructive' });
+    } catch (error: any) {
+      toast({ title: 'Failed to Update Quote', description: error.message || 'Could not update quotation.', variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }

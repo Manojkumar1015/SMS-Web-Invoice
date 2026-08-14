@@ -70,7 +70,7 @@ export class ItemRepository {
 
   async create(payload: Record<string, any>) {
     const supabase = createClient();
-    const { data, error } = await (supabase.from('items' as any) as any)
+    let { data, error } = await (supabase.from('items' as any) as any)
       .insert({
         ...payload,
         created_at: new Date().toISOString(),
@@ -78,6 +78,20 @@ export class ItemRepository {
       })
       .select()
       .single();
+
+    if (error && (error.message?.toLowerCase().includes('column') || error.code === 'PGRST204')) {
+      const { classification_id, item_type, category, ...legacyPayload } = payload;
+      const retry = await (supabase.from('items' as any) as any)
+        .insert({
+          ...legacyPayload,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error) {
       throw new DatabaseError(`Failed to create item: ${error.message}`);
@@ -88,7 +102,7 @@ export class ItemRepository {
 
   async update(id: string, organizationId: string, payload: Record<string, any>) {
     const supabase = createClient();
-    const { data, error } = await (supabase.from('items' as any) as any)
+    let { data, error } = await (supabase.from('items' as any) as any)
       .update({
         ...payload,
         updated_at: new Date().toISOString(),
@@ -98,6 +112,21 @@ export class ItemRepository {
       .select()
       .single();
 
+    if (error && (error.message?.toLowerCase().includes('column') || error.code === 'PGRST204')) {
+      const { classification_id, item_type, category, ...legacyPayload } = payload;
+      const retry = await (supabase.from('items' as any) as any)
+        .update({
+          ...legacyPayload,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .eq('organization_id', organizationId)
+        .select()
+        .single();
+      data = retry.data;
+      error = retry.error;
+    }
+
     if (error) {
       throw new DatabaseError(`Failed to update item: ${error.message}`);
     }
@@ -106,7 +135,39 @@ export class ItemRepository {
   }
 
   async archive(id: string, organizationId: string) {
-    return this.update(id, organizationId, { is_active: false });
+    const supabase = createClient();
+    const { data, error } = await (supabase.from('items' as any) as any)
+      .update({
+        is_active: false,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .eq('organization_id', organizationId)
+      .select();
+
+    if (error) {
+      throw new DatabaseError(`Failed to archive item: ${error.message}`);
+    }
+
+    if (!data || data.length === 0) {
+      throw new NotFoundError(`Item with ID ${id} not found or not authorized to archive.`);
+    }
+
+    return data[0];
+  }
+
+  async delete(id: string, organizationId: string) {
+    const supabase = createClient();
+    const { error } = await (supabase.from('items' as any) as any)
+      .delete()
+      .eq('id', id)
+      .eq('organization_id', organizationId);
+
+    if (error) {
+      return this.archive(id, organizationId);
+    }
+
+    return true;
   }
 
   async getNextItemCode(organizationId: string): Promise<string> {

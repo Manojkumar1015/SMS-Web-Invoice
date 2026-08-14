@@ -118,7 +118,16 @@ export class InvoiceRepository {
         sort_order: index,
       }));
 
-      const { error: itemsError } = await (supabase.from('invoice_items' as any) as any).insert(lineItems);
+      let { error: itemsError } = await (supabase.from('invoice_items' as any) as any).insert(lineItems);
+      if (itemsError && (itemsError.message?.toLowerCase().includes('column') || itemsError.code === 'PGRST204')) {
+        const legacyLineItems = lineItems.map((item: any) => {
+          const { classification_id, classification_code, classification_type, ...rest } = item;
+          return rest;
+        });
+        const retry = await (supabase.from('invoice_items' as any) as any).insert(legacyLineItems);
+        itemsError = retry.error;
+      }
+
       if (itemsError) {
         throw new DatabaseError(`Failed to create invoice items: ${itemsError.message}`);
       }

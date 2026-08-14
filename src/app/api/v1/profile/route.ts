@@ -21,8 +21,10 @@ export async function GET(request: NextRequest) {
       throw new DatabaseError(`Failed to fetch profile: ${error.message}`);
     }
 
-    const username = profile?.full_name || context.user.email.split('@')[0];
-    const fullName = profile?.full_name || context.user.email.split('@')[0];
+    console.log(`[GET /api/v1/profile] User ID: ${context.user.id}, Profile fetched:`, profile);
+
+    const username = context.user.email.split('@')[0];
+    const fullName = profile?.full_name || '';
     const phone = profile?.phone || '';
     const avatarUrl = profile?.avatar_url || '';
 
@@ -42,6 +44,7 @@ export async function GET(request: NextRequest) {
       requestId
     );
   } catch (error) {
+    console.error(`[GET /api/v1/profile Error]:`, error);
     return errorResponse(error, requestId);
   }
 }
@@ -53,6 +56,8 @@ export async function PATCH(request: NextRequest) {
     const context = await getAuthContext();
     const supabase = createClient();
     const body = await request.json();
+
+    console.log(`[PATCH /api/v1/profile] User ID: ${context.user.id}, Body:`, body);
 
     const parseResult = profileUpdateSchema.safeParse(body);
     if (!parseResult.success) {
@@ -67,22 +72,37 @@ export async function PATCH(request: NextRequest) {
     const updatePayload: Record<string, any> = {
       updated_at: new Date().toISOString(),
     };
-    if (data.username !== undefined) updatePayload.full_name = data.username;
-    else if (data.fullName !== undefined) updatePayload.full_name = data.fullName;
+    if (data.fullName !== undefined) updatePayload.full_name = data.fullName;
     if (data.phone !== undefined) updatePayload.phone = data.phone || null;
     if (data.avatarUrl !== undefined) updatePayload.avatar_url = data.avatarUrl || null;
 
-    const { data: updatedProfile, error: profileErr } = await (supabase.from('profiles' as any) as any)
-      .upsert({
-        id: context.user.id,
-        ...updatePayload,
-      })
+    console.log(`[PATCH /api/v1/profile] Executing update for user ${context.user.id} with payload:`, updatePayload);
+
+    let { data: updatedProfile, error: profileErr } = await (supabase.from('profiles' as any) as any)
+      .update(updatePayload)
+      .eq('id', context.user.id)
       .select()
-      .single();
+      .maybeSingle();
+
+    if (!updatedProfile && !profileErr) {
+      console.log(`[PATCH /api/v1/profile] Profile row not found for update, executing upsert...`);
+      const upsertRes = await (supabase.from('profiles' as any) as any)
+        .upsert({
+          id: context.user.id,
+          ...updatePayload,
+        })
+        .select()
+        .single();
+      updatedProfile = upsertRes.data;
+      profileErr = upsertRes.error;
+    }
 
     if (profileErr) {
+      console.error(`[PATCH /api/v1/profile] Supabase error:`, profileErr);
       throw new DatabaseError(`Failed to update profile: ${profileErr.message}`);
     }
+
+    console.log(`[PATCH /api/v1/profile] Update success, result:`, updatedProfile);
 
     // 2. Update Auth Password if requested
     if (data.newPassword && data.newPassword.trim().length >= 6) {
@@ -94,14 +114,14 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    const resUsername = updatedProfile?.full_name || context.user.email.split('@')[0];
+    const username = context.user.email.split('@')[0];
 
     return successResponse(
       {
         id: context.user.id,
         email: context.user.email,
-        username: resUsername,
-        fullName: resUsername,
+        username,
+        fullName: updatedProfile?.full_name || '',
         phone: updatedProfile?.phone || '',
         avatarUrl: updatedProfile?.avatar_url || '',
         organizationName: context.organization.name,

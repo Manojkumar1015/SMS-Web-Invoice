@@ -10,23 +10,22 @@ import {
 } from '@/types/settings';
 
 export const mockBusinessSettings: BusinessSettings = {
-  companyName: 'Acme Software Solutions Pvt Ltd',
-  legalName: 'Acme Software Solutions Private Limited',
-  email: 'billing@acmesolutions.com',
-  phone: '+91 98765 43210',
-  website: 'https://acmesolutions.com',
-  address: 'Suite 402, BKC Tech Park, Bandra Kurla Complex',
-  city: 'Mumbai',
-  state: 'Maharashtra',
-  postalCode: '400051',
+  companyName: 'My Organization',
+  legalName: 'My Organization',
+  email: '',
+  phone: '',
+  website: '',
+  address: '',
+  city: '',
+  state: '',
+  postalCode: '',
   country: 'India',
-  gstin: '27AAAAA0000A1Z5',
-  pan: 'AAAAA0000A',
+  gstin: '',
+  pan: '',
   currency: 'INR',
   timezone: 'Asia/Kolkata (IST)',
   dateFormat: 'DD/MM/YYYY',
   timeFormat: '12-hour (hh:mm A)',
-  logoName: 'Acme_Logo_2026.png',
 };
 
 export const mockInvoiceSettings: InvoiceSettings = {
@@ -69,13 +68,13 @@ export const mockPaymentSettings: PaymentSettings = {
     other: false,
   },
   bankDetails: {
-    accountName: 'Acme Software Solutions Pvt Ltd',
-    bankName: 'HDFC Bank Ltd',
-    accountNumber: '50200019283746',
-    ifscCode: 'HDFC0000123',
-    branch: 'BKC Branch, Mumbai',
+    accountName: '',
+    bankName: '',
+    accountNumber: '',
+    ifscCode: '',
+    branch: '',
   },
-  upiId: 'acmesoftware@hdfcbank',
+  upiId: '',
   paymentInstructions: 'Kindly mention invoice number in UTR/Remarks during bank transfer.',
 };
 

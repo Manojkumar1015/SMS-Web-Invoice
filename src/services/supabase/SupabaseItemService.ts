@@ -75,7 +75,8 @@ export class SupabaseItemService implements IItemService {
       method: 'DELETE',
     });
     if (!res.ok) {
-      throw new Error('Failed to delete item');
+      const errorJson = await res.json().catch(() => ({}));
+      throw new Error(errorJson.error?.message || `Failed to delete item (${res.status} ${res.statusText})`);
     }
     const json = await res.json();
     return !!json.success;

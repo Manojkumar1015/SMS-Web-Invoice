@@ -23,6 +23,10 @@ export class QuoteService {
       discount: Number(item.discount) || 0,
       taxRate: Number(item.tax_rate) || 0,
       amount: Number(item.line_total) || 0,
+      classificationId: item.classification_id || undefined,
+      classificationCode: item.classification_code || item.hsn_sac_code || undefined,
+      classificationType: item.classification_type || undefined,
+      hsn: item.classification_code || item.hsn_sac_code || undefined,
     }));
 
     const customer = row.customer ? {
@@ -78,9 +82,10 @@ export class QuoteService {
     await validateOrganizationCustomer(input.customerId, context.organization.id);
     await validateOrganizationItems(input.items.map((i) => i.itemId), context.organization.id);
 
-    const quoteNumber = input.quoteNumber && input.quoteNumber.trim()
-      ? input.quoteNumber.trim()
-      : await this.repo.getNextQuoteNumber(context.organization.id);
+    const quoteNumber =
+      input.quoteNumber && input.quoteNumber !== 'QUO-PREVIEW' && input.quoteNumber.trim()
+        ? input.quoteNumber.trim()
+        : await this.repo.getNextQuoteNumber(context.organization.id);
 
     const lineInputs = input.items.map((item) => ({
       quantity: item.quantity,
@@ -97,13 +102,16 @@ export class QuoteService {
     const quoteDate = input.quoteDate || input.date || new Date().toISOString().split('T')[0];
     const validUntil = input.validUntil || input.expiryDate || new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
 
+    const rawStatus = input.status || 'draft';
+    const status = rawStatus === ('declined' as any) ? 'rejected' : rawStatus;
+
     const payload = {
       organization_id: context.organization.id,
       customer_id: input.customerId,
       quote_number: quoteNumber,
       quote_date: new Date(quoteDate).toISOString(),
       valid_until: new Date(validUntil).toISOString(),
-      status: input.status || 'draft',
+      status,
       subtotal: computed.subtotal,
       discount: computed.discountTotal,
       tax: computed.taxTotal,
@@ -125,6 +133,9 @@ export class QuoteService {
         tax_rate: calc.taxRate,
         tax_amount: calc.taxAmount,
         line_total: calc.lineTotal,
+        classification_id: item.classificationId || null,
+        classification_code: item.classificationCode || item.hsn || null,
+        classification_type: item.classificationType || null,
       };
     });
 

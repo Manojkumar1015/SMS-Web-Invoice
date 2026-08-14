@@ -253,9 +253,18 @@ export function DocumentRenderer({
                     );
                   }
                   if (col.key === 'item') {
+                    const code = item.classificationCode || item.hsn;
+                    const type = item.classificationType || (code ? 'HSN/SAC' : undefined);
                     return (
                       <td key={col.key} className="px-3 py-2.5">
-                        <div className="font-bold text-slate-900">{item.name}</div>
+                        <div className="font-bold text-slate-900 flex items-center gap-1.5 flex-wrap">
+                          <span>{item.name}</span>
+                          {code && (
+                            <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
+                              {type && type !== 'HSN/SAC' ? `${type}: ${code}` : `${code}`}
+                            </span>
+                          )}
+                        </div>
                         {item.description && (
                           <div className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">{item.description}</div>
                         )}
@@ -263,9 +272,10 @@ export function DocumentRenderer({
                     );
                   }
                   if (col.key === 'hsn') {
+                    const code = item.classificationCode || item.hsn;
                     return (
                       <td key={col.key} className="px-3 py-2.5 text-center font-mono text-slate-600">
-                        998313
+                        {code || '—'}
                       </td>
                     );
                   }
@@ -404,32 +414,40 @@ export function DocumentRenderer({
   const renderPayment = () => {
     if (!payment.showBankDetails) return null;
 
+    const hasBankDetails = Boolean(
+      payment.bankName || payment.accountNumber || payment.ifscCode
+    );
+
     return (
       <div className="p-4 rounded-xl border text-xs text-slate-600 space-y-2 mb-6" style={{ backgroundColor: `${colors.tableHeaderBg}30`, borderColor: colors.border }}>
         <span className="text-[10px] font-bold uppercase tracking-wider block" style={{ color: colors.secondary }}>
           Payment & Banking Details:
         </span>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="sm:col-span-2 space-y-1">
-            <p className="font-bold text-slate-900 text-sm">{payment.bankName}</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 font-mono text-[11px] text-slate-700">
-              <div>A/C Name: <strong>{payment.accountName}</strong></div>
-              <div>A/C No: <strong>{payment.accountNumber}</strong></div>
-              <div>IFSC Code: <strong>{payment.ifscCode}</strong></div>
-              <div>Branch: <strong>{payment.branchName}</strong></div>
-            </div>
-            {payment.instructions && <p className="text-[11px] text-slate-500 pt-1">{payment.instructions}</p>}
-          </div>
-
-          {payment.showUpiQr && (
-            <div className="flex flex-col items-center justify-center p-2 rounded-lg border bg-white border-slate-200 text-center">
-              <div className="h-16 w-16 border-2 border-dashed border-indigo-300 rounded flex items-center justify-center bg-indigo-50/50 text-[9px] font-bold text-indigo-700">
-                UPI QR CODE
+        {hasBankDetails ? (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="sm:col-span-2 space-y-1">
+              {payment.bankName && <p className="font-bold text-slate-900 text-sm">{payment.bankName}</p>}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 font-mono text-[11px] text-slate-700">
+                {payment.accountName && <div>A/C Name: <strong>{payment.accountName}</strong></div>}
+                {payment.accountNumber && <div>A/C No: <strong>{payment.accountNumber}</strong></div>}
+                {payment.ifscCode && <div>IFSC Code: <strong>{payment.ifscCode}</strong></div>}
+                {payment.branchName && <div>Branch: <strong>{payment.branchName}</strong></div>}
               </div>
-              <span className="text-[10px] font-mono text-slate-600 mt-1">{payment.upiId}</span>
+              {payment.instructions && <p className="text-[11px] text-slate-500 pt-1">{payment.instructions}</p>}
             </div>
-          )}
-        </div>
+
+            {payment.showUpiQr && payment.upiId && (
+              <div className="flex flex-col items-center justify-center p-2 rounded-lg border bg-white border-slate-200 text-center">
+                <div className="h-16 w-16 border-2 border-dashed border-indigo-300 rounded flex items-center justify-center bg-indigo-50/50 text-[9px] font-bold text-indigo-700">
+                  UPI QR CODE
+                </div>
+                <span className="text-[10px] font-mono text-slate-600 mt-1">{payment.upiId}</span>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="text-xs text-slate-400 italic">Payment details not configured</p>
+        )}
       </div>
     );
   };

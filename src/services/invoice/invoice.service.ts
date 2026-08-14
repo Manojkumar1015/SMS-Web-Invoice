@@ -21,6 +21,10 @@ export class InvoiceService {
       discount: Number(item.discount) || 0,
       taxRate: Number(item.tax_rate) || 0,
       amount: Number(item.line_total) || 0,
+      classificationId: item.classification_id || undefined,
+      classificationCode: item.classification_code || item.hsn_sac_code || undefined,
+      classificationType: item.classification_type || undefined,
+      hsn: item.classification_code || item.hsn_sac_code || undefined,
     }));
 
     const customer = row.customer ? {
@@ -78,9 +82,10 @@ export class InvoiceService {
     await validateOrganizationCustomer(input.customerId, context.organization.id);
     await validateOrganizationItems(input.items.map((i) => i.itemId), context.organization.id);
 
-    const invoiceNumber = input.invoiceNumber && input.invoiceNumber.trim()
-      ? input.invoiceNumber.trim()
-      : await this.repo.getNextInvoiceNumber(context.organization.id);
+    const invoiceNumber =
+      input.invoiceNumber && input.invoiceNumber !== 'INV-PREVIEW' && input.invoiceNumber.trim()
+        ? input.invoiceNumber.trim()
+        : await this.repo.getNextInvoiceNumber(context.organization.id);
 
     const lineInputs = input.items.map((item) => ({
       quantity: item.quantity,
@@ -140,6 +145,9 @@ export class InvoiceService {
         tax_rate: calc.taxRate,
         tax_amount: calc.taxAmount,
         line_total: calc.lineTotal,
+        classification_id: item.classificationId || null,
+        classification_code: item.classificationCode || item.hsn || null,
+        classification_type: item.classificationType || null,
       };
     });
 
