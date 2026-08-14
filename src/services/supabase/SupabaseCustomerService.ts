@@ -68,15 +68,19 @@ export class SupabaseCustomerService implements ICustomerService {
     return json.data;
   }
 
-  async deleteCustomer(id: string): Promise<boolean> {
+  async deleteCustomer(id: string): Promise<{ success: boolean; mode?: 'deleted' | 'archived'; message?: string }> {
     const res = await fetch(`/api/v1/customers/${id}`, {
       method: 'DELETE',
     });
-    if (!res.ok) {
-      throw new Error('Failed to delete customer');
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json.success) {
+      throw new Error(json.error?.message || 'Failed to delete customer');
     }
-    const json = await res.json();
-    return !!json.success;
+    return {
+      success: true,
+      mode: json.data?.mode,
+      message: json.data?.message,
+    };
   }
 
   async getTopCustomers(limit?: number): Promise<Customer[]> {

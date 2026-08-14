@@ -15,14 +15,16 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { CurrencyDisplay } from '@/components/ui/currency-display';
 import { CustomerAvatar } from '@/components/domain/customer/customer-avatar';
 import { CustomerFormDialog } from '@/components/domain/customer/customer-form-dialog';
+import { useToast } from '@/hooks/use-toast';
 import { Plus, UserPlus, Eye, Edit, Trash2 } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 export default function CustomersPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [customers, setCustomers] = React.useState<Customer[]>([]);
   const [search, setSearch] = React.useState('');
-  const [statusFilter, setStatusFilter] = React.useState('all');
+  const [statusFilter, setStatusFilter] = React.useState('active');
   const [loading, setLoading] = React.useState(true);
   const [page, setPage] = React.useState(1);
   const [totalItems, setTotalItems] = React.useState(0);
@@ -60,9 +62,22 @@ export default function CustomersPage() {
 
   const handleDelete = async () => {
     if (!deletingCustomer) return;
-    await customerService.deleteCustomer(deletingCustomer.id);
-    setDeletingCustomer(null);
-    fetchCustomers();
+    try {
+      const res = await customerService.deleteCustomer(deletingCustomer.id);
+      toast({
+        title: res.mode === 'deleted' ? 'Customer Deleted' : 'Customer Archived',
+        description: res.message || (res.mode === 'deleted' ? 'Customer deleted successfully.' : 'Customer archived because financial records are associated with this customer.'),
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Delete Failed',
+        description: err.message || 'Failed to delete customer',
+        variant: 'destructive',
+      });
+    } finally {
+      setDeletingCustomer(null);
+      fetchCustomers();
+    }
   };
 
   const columns: Column<Customer>[] = [
@@ -165,9 +180,9 @@ export default function CustomersPage() {
         <SearchInput value={search} onSearchChange={setSearch} placeholder="Search customers by name, GSTIN..." />
         <FilterBar
           options={[
+            { value: 'active', label: 'Active Customers', count: statusFilter === 'active' ? totalItems : undefined },
+            { value: 'inactive', label: 'Inactive / Archived', count: statusFilter === 'inactive' ? totalItems : undefined },
             { value: 'all', label: 'All Customers', count: statusFilter === 'all' ? totalItems : undefined },
-            { value: 'active', label: 'Active' },
-            { value: 'inactive', label: 'Inactive' },
           ]}
           activeFilter={statusFilter}
           onFilterChange={setStatusFilter}

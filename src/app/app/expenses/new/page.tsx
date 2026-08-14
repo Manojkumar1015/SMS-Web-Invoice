@@ -35,14 +35,10 @@ export default function NewExpensePage() {
   const [notes, setNotes] = React.useState('');
   const [submitting, setSubmitting] = React.useState(false);
 
-  // If customer expense type selected, default billable to true
   const handleTypeChange = (type: ExpenseType) => {
     setExpenseType(type);
-    if (type === 'customer') {
-      setBillable(true);
-    } else {
+    if (type === 'business') {
       setSelectedCustomer(null);
-      setBillable(false);
     }
   };
 
@@ -93,8 +89,8 @@ export default function NewExpensePage() {
       });
 
       router.push('/app/expenses');
-    } catch {
-      toast({ title: 'Error', description: 'Could not log expense entry.', variant: 'destructive' });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err?.message || 'Could not log expense entry.', variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }

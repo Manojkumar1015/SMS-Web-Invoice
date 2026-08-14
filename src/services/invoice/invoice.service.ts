@@ -1,5 +1,6 @@
 import { InvoiceRepository, InvoiceQueryOptions } from '@/repositories/invoice.repository';
 import { AuthContext, requireRole } from '@/lib/api/auth-context';
+import { ValidationError } from '@/lib/api/errors';
 import { logAuditEvent } from '@/lib/api/audit';
 import { Invoice, InvoiceCreateInput } from '@/types/invoice';
 import { DocumentItem } from '@/types/quote';
@@ -32,6 +33,11 @@ export class InvoiceService {
       displayName: row.customer.display_name,
       companyName: row.customer.company_name,
       email: row.customer.email,
+      phone: row.customer.phone,
+      gstin: row.customer.gstin,
+      billingAddress: row.customer.billing_address,
+      shippingAddress: row.customer.shipping_address,
+      sameAsBillingAddress: row.customer.same_as_billing_address,
     } : undefined;
 
     return {
@@ -40,6 +46,11 @@ export class InvoiceService {
       customerId: row.customer_id,
       customerName: customer?.displayName || customer?.companyName || 'Unknown Customer',
       customerEmail: customer?.email || '',
+      customerPhone: customer?.phone || undefined,
+      customerGstin: customer?.gstin || undefined,
+      billingAddress: row.billing_address || customer?.billingAddress || undefined,
+      shippingAddress: row.shipping_address || customer?.shippingAddress || undefined,
+      sameAsBillingAddress: row.same_as_billing_address ?? customer?.sameAsBillingAddress ?? (row.shipping_address ? false : true),
       quoteId: row.quote_id || undefined,
       date: row.invoice_date ? new Date(row.invoice_date).toISOString().split('T')[0] : '',
       dueDate: row.due_date ? new Date(row.due_date).toISOString().split('T')[0] : '',
@@ -252,10 +263,23 @@ export class InvoiceService {
 
   async deleteInvoice(context: AuthContext, id: string): Promise<boolean> {
     requireRole(['Owner', 'Admin'], context.membership.role);
+
+    const existing = await this.repo.getById(id, context.organization.id);
+
+    const amountPaid = Number(existing.amount_paid) || 0;
+    const paymentsCount = Array.isArray(existing.payments) ? existing.payments.length : 0;
+
+    if (amountPaid > 0 || paymentsCount > 0) {
+      throw new ValidationError(
+        `Cannot delete invoice ${existing.invoice_number} because it has recorded payments. Please cancel the invoice or remove recorded payments first.`
+      );
+    }
+
     await this.repo.delete(id, context.organization.id);
 
     logAuditEvent(context.organization.id, context.user.id, 'ORGANIZATION_UPDATED' as any, 'Invoice', id, {
       action: 'invoice.deleted',
+      invoiceNumber: existing.invoice_number,
     });
 
     return true;

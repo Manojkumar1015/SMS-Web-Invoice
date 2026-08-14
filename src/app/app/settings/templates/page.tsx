@@ -1,57 +1,100 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter } from 'next/navigation';
 import { templateService } from '@/services';
 import { InvoiceTemplate } from '@/types/template';
 import { PageHeader } from '@/components/ui/page-header';
 import { SettingsNavigation } from '@/components/domain/settings/settings-navigation';
-import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { TemplatePreviewCard } from '@/components/domain/template/template-preview-card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DocumentRenderer } from '@/components/domain/document/document-renderer';
+import { LoadingState } from '@/components/ui/loading-state';
+import { Palette } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+
 const SAMPLE_PREVIEW_INVOICE: any = {
   id: 'preview-inv-001',
-  invoiceNumber: 'INV-2026-001',
+  invoiceNumber: 'INV-000002',
   customerId: 'cust-preview',
-  customerName: 'Commercial Client Account',
-  customerEmail: 'billing@clientcompany.com',
-  date: new Date().toISOString().split('T')[0],
-  dueDate: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+  customerName: 'Scott, Melba R.',
+  customerEmail: 'scott.melba@example.com',
+  customerPhone: '+1 (555) 234-5678',
+  billingAddress: {
+    street: '2476 Blackwell Street',
+    city: 'Fairbanks',
+    state: 'Colorado',
+    postalCode: '99701',
+    country: 'U.S.A',
+  },
+  shippingAddress: {
+    street: '2476 Blackwell Street',
+    city: 'Fairbanks',
+    state: 'Colorado',
+    postalCode: '99701',
+    country: 'U.S.A',
+  },
+  sameAsBillingAddress: true,
+  date: '2026-08-05',
+  dueDate: '2026-08-05',
+  paymentTerms: 'Due on Receipt',
   items: [
     {
       id: 'item-1',
-      name: 'Software Consultancy Services',
-      description: 'Monthly architecture design and technical support',
+      name: 'Pepe Jeans',
+      description: 'Tapered fit Mid rise - Blue',
       quantity: 1,
-      unitPrice: 50000,
+      unit: 'Square feet',
+      unitPrice: 24.99,
+      rate: 24.99,
       discount: 0,
-      taxRate: 18,
-      amount: 59000,
-      total: 59000,
+      taxRate: 5,
+      amount: 24.99,
+      total: 24.99,
+    },
+    {
+      id: 'item-2',
+      name: 'Boys Shirt',
+      description: 'Size - 36, Mosaic design',
+      quantity: 1,
+      unit: 'Piece',
+      unitPrice: 16.99,
+      rate: 16.99,
+      discount: 0,
+      taxRate: 5,
+      amount: 16.99,
+      total: 16.99,
+    },
+    {
+      id: 'item-3',
+      name: 'Men Shirt',
+      description: 'Size - 36, Mosaic design',
+      quantity: 1,
+      unit: 'Piece',
+      unitPrice: 19.99,
+      rate: 19.99,
+      discount: 0,
+      taxRate: 5,
+      amount: 19.99,
+      total: 19.99,
     },
   ],
-  subtotal: 50000,
+  subtotal: 61.97,
   discount: 0,
   discountTotal: 0,
-  tax: 9000,
-  taxTotal: 9000,
-  total: 59000,
+  tax: 3.09,
+  taxTotal: 3.09,
+  total: 65.06,
   amountPaid: 0,
-  amountDue: 59000,
+  amountDue: 65.06,
   status: 'sent',
-  notes: 'Thank you for your business.',
-  terms: 'Payment due within 30 days of invoice date.',
+  notes: 'Thanks for your business.',
+  terms: 'Full payment is due upon receipt of this invoice. Late payments may incur additional charges or interest as per the applicable laws.',
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
 };
-import { LoadingState } from '@/components/ui/loading-state';
-import { Palette, Plus } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
 
 export default function TemplateSettingsPage() {
-  const router = useRouter();
   const { toast } = useToast();
 
   const [templates, setTemplates] = React.useState<InvoiceTemplate[]>([]);
@@ -76,37 +119,17 @@ export default function TemplateSettingsPage() {
     try {
       const updated = await templateService.setDefaultTemplate(id);
       toast({
-        title: 'Default Template Updated',
-        description: `Set "${updated.name}" as primary default invoice theme.`,
+        title: 'Invoice Template Selected',
+        description: `"${updated.name}" is now the active invoice template for Preview & PDF downloads.`,
         variant: 'success',
       });
       fetchTemplates();
     } catch {
-      toast({ title: 'Error', description: 'Could not set default template.', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Could not select template.', variant: 'destructive' });
     }
   };
 
-  const handleDuplicate = async (id: string) => {
-    try {
-      const dup = await templateService.duplicateTemplate(id);
-      toast({ title: 'Template Duplicated', description: `Created "${dup.name}".`, variant: 'success' });
-      fetchTemplates();
-    } catch {
-      toast({ title: 'Error', description: 'Could not duplicate template.', variant: 'destructive' });
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    try {
-      await templateService.deleteTemplate(id);
-      toast({ title: 'Template Deleted', description: 'Template removed.', variant: 'info' });
-      fetchTemplates();
-    } catch {
-      toast({ title: 'Error', description: 'Could not delete template.', variant: 'destructive' });
-    }
-  };
-
-  if (loading) return <LoadingState message="Loading templates..." />;
+  if (loading) return <LoadingState message="Loading invoice templates..." />;
 
   return (
     <div className="space-y-6">
@@ -120,29 +143,23 @@ export default function TemplateSettingsPage() {
 
         <div className="flex-1 space-y-6">
           <Card className="border-slate-200 shadow-xs">
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
-              <div>
-                <div className="flex items-center space-x-2">
-                  <Palette className="h-5 w-5 text-indigo-600" />
-                  <CardTitle>Invoice & Document Templates Studio</CardTitle>
-                </div>
-                <CardDescription>Select default document theme or customize design, colors, fonts, and headers.</CardDescription>
+            <CardHeader className="pb-3">
+              <div className="flex items-center space-x-2">
+                <Palette className="h-5 w-5 text-indigo-600" />
+                <CardTitle>INVOICE TEMPLATES</CardTitle>
               </div>
-
-              <Button size="sm" onClick={() => router.push('/app/templates/new')} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold">
-                <Plus className="h-4 w-4 mr-1.5" /> Create Template
-              </Button>
+              <CardDescription>
+                Select your preferred built-in invoice design theme. The selected template controls both the invoice preview and downloadable PDF documents.
+              </CardDescription>
             </CardHeader>
 
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            <CardContent className="space-y-6 pt-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {templates.map((tpl) => (
                   <TemplatePreviewCard
                     key={tpl.id}
                     template={tpl}
                     onSetDefault={handleSetDefault}
-                    onDuplicate={handleDuplicate}
-                    onDelete={handleDelete}
                     onPreview={(t) => setPreviewTemplate(t)}
                   />
                 ))}
@@ -152,13 +169,13 @@ export default function TemplateSettingsPage() {
         </div>
       </div>
 
-      {/* Template Preview Modal */}
+      {/* Template Full Preview Modal */}
       {previewTemplate && (
         <Dialog open={!!previewTemplate} onOpenChange={(open) => !open && setPreviewTemplate(null)}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-6">
             <DialogHeader>
               <DialogTitle className="text-base font-bold flex items-center justify-between">
-                <span>{previewTemplate.name} Preview</span>
+                <span>{previewTemplate.name} — Full Layout Preview</span>
               </DialogTitle>
             </DialogHeader>
 

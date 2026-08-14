@@ -126,4 +126,34 @@ export class CustomerService {
 
     return true;
   }
+
+  async deleteCustomer(context: AuthContext, id: string): Promise<{ mode: 'deleted' | 'archived'; message: string }> {
+    requireRole(['Owner', 'Admin', 'Accountant', 'Staff'], context.membership.role);
+
+    const dependentCount = await this.repo.getDependentRecordCounts(id, context.organization.id);
+
+    if (dependentCount === 0) {
+      await this.repo.hardDelete(id, context.organization.id);
+
+      logAuditEvent(context.organization.id, context.user.id, 'ORGANIZATION_UPDATED' as any, 'Customer', id, {
+        action: 'customer.deleted',
+      });
+
+      return {
+        mode: 'deleted',
+        message: 'Customer deleted successfully.',
+      };
+    } else {
+      await this.repo.archive(id, context.organization.id);
+
+      logAuditEvent(context.organization.id, context.user.id, 'ORGANIZATION_UPDATED' as any, 'Customer', id, {
+        action: 'customer.archived',
+      });
+
+      return {
+        mode: 'archived',
+        message: 'Customer archived because financial records are associated with this customer.',
+      };
+    }
+  }
 }

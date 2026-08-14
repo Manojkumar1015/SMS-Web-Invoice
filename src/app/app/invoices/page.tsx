@@ -21,6 +21,7 @@ import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown';
 import { Plus, Eye, Edit, Copy, Download, Send, CreditCard, Trash2, Ban, MoreHorizontal, Filter, X } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { SendDocumentDialog } from '@/components/domain/document/send-document-dialog';
 import { useToast } from '@/hooks/use-toast';
 
 export default function InvoicesPage() {
@@ -44,6 +45,7 @@ export default function InvoicesPage() {
   const [paymentInvoice, setPaymentInvoice] = React.useState<Invoice | null>(null);
   const [cancellingInvoice, setCancellingInvoice] = React.useState<Invoice | null>(null);
   const [deletingInvoice, setDeletingInvoice] = React.useState<Invoice | null>(null);
+  const [sendingInvoice, setSendingInvoice] = React.useState<Invoice | null>(null);
 
   React.useEffect(() => {
     customerService.getCustomers().then((res) => setCustomers(res.data));
@@ -75,10 +77,16 @@ export default function InvoicesPage() {
 
   const handleDelete = async () => {
     if (!deletingInvoice) return;
-    await invoiceService.deleteInvoice(deletingInvoice.id);
-    toast({ title: 'Invoice Deleted', description: `Removed invoice ${deletingInvoice.invoiceNumber}.`, variant: 'info' });
-    setDeletingInvoice(null);
-    fetchInvoices();
+    try {
+      await invoiceService.deleteInvoice(deletingInvoice.id);
+      toast({ title: 'Invoice Deleted', description: `Removed invoice ${deletingInvoice.invoiceNumber}.`, variant: 'info' });
+      setDeletingInvoice(null);
+      fetchInvoices();
+    } catch (err: any) {
+      console.error('[handleDelete error]:', err);
+      toast({ title: 'Error Deleting Invoice', description: err.message || 'Could not delete invoice.', variant: 'destructive' });
+      setDeletingInvoice(null);
+    }
   };
 
   const handleCancelInvoice = async () => {
@@ -99,13 +107,34 @@ export default function InvoicesPage() {
     }
   };
 
-  const handleSend = async (inv: Invoice) => {
+  const handleSend = (inv: Invoice) => {
+    setSendingInvoice(inv);
+  };
+
+  const handleDownloadPdf = async (inv: Invoice) => {
     try {
-      await invoiceService.sendInvoice(inv.id);
-      toast({ title: 'Invoice Sent', description: `Marked invoice ${inv.invoiceNumber} as sent.`, variant: 'info' });
-      fetchInvoices();
-    } catch {
-      toast({ title: 'Error', description: 'Could not send invoice.', variant: 'destructive' });
+      const res = await fetch(`/api/v1/invoices/${inv.id}/pdf?download=true`);
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error?.message || `Failed to download PDF (HTTP ${res.status})`);
+      }
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/pdf')) {
+        throw new Error('Server returned an invalid content type.');
+      }
+      const blob = await res.blob();
+      const pdfBlob = new Blob([blob], { type: 'application/pdf' });
+      const url = URL.createObjectURL(pdfBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${inv.invoiceNumber || 'Invoice'}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast({ title: 'PDF Downloaded', description: `Invoice ${inv.invoiceNumber}.pdf downloaded.`, variant: 'success' });
+    } catch (err: any) {
+      toast({ title: 'Download Failed', description: err.message || 'Failed to download PDF', variant: 'destructive' });
     }
   };
 
@@ -184,21 +213,44 @@ export default function InvoicesPage() {
               <DropdownMenuItem onClick={() => handleSend(inv)}>
                 <Send className="h-4 w-4 mr-2 text-slate-600" /> Send to Client
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => toast({ title: 'PDF Downloaded', description: `Downloaded PDF for ${inv.invoiceNumber}`, variant: 'info' })}>
+              <DropdownMenuItem onClick={() => handleDownloadPdf(inv)}>
                 <Download className="h-4 w-4 mr-2 text-slate-600" /> Download PDF
               </DropdownMenuItem>
-              {inv.status !== 'cancelled' && (
+              {inv.amountPaid > 0 ? (
                 <>
+                  {inv.status !== 'cancelled' && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => setCancellingInvoice(inv)} className="text-amber-700 focus:text-amber-800 font-medium">
+                        <Ban className="h-4 w-4 mr-2" /> Cancel Invoice
+                      </DropdownMenuItem>
+                    </>
+                  )}
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setCancellingInvoice(inv)} className="text-amber-700 focus:text-amber-800">
-                    <Ban className="h-4 w-4 mr-2" /> Cancel Invoice
+                  <DropdownMenuItem
+                    disabled
+                    title="Invoices with recorded payments cannot be deleted to protect financial history"
+                    className="opacity-50 cursor-not-allowed text-slate-400"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" /> Delete (Has Payments)
+                  </DropdownMenuItem>
+                </>
+              ) : (
+                <>
+                  {inv.status !== 'cancelled' && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => setCancellingInvoice(inv)} className="text-amber-700 focus:text-amber-800">
+                        <Ban className="h-4 w-4 mr-2" /> Cancel Invoice
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setDeletingInvoice(inv)} className="text-red-600 focus:text-red-700 font-medium">
+                    <Trash2 className="h-4 w-4 mr-2" /> Delete Invoice
                   </DropdownMenuItem>
                 </>
               )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setDeletingInvoice(inv)} className="text-red-600 focus:text-red-700">
-                <Trash2 className="h-4 w-4 mr-2" /> Delete
-              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -376,6 +428,27 @@ export default function InvoicesPage() {
           confirmLabel="Delete Invoice"
           variant="destructive"
           onConfirm={handleDelete}
+        />
+      )}
+
+      {/* Send Document Dialog */}
+      {sendingInvoice && (
+        <SendDocumentDialog
+          open={!!sendingInvoice}
+          onOpenChange={(open) => !open && setSendingInvoice(null)}
+          document={{
+            id: sendingInvoice.id,
+            type: 'Invoice',
+            number: sendingInvoice.invoiceNumber,
+            customerName: sendingInvoice.customerName,
+            customerEmail: sendingInvoice.customerEmail,
+            customerPhone: sendingInvoice.customerPhone,
+            date: sendingInvoice.date,
+            dueDate: sendingInvoice.dueDate,
+            total: sendingInvoice.total,
+            amountPaid: sendingInvoice.amountPaid,
+            amountDue: sendingInvoice.amountDue,
+          }}
         />
       )}
     </div>

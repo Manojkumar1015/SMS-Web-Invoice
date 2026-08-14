@@ -77,10 +77,15 @@ export class MockCustomerService implements ICustomerService {
     return updated;
   }
 
-  async deleteCustomer(id: string): Promise<boolean> {
+  async deleteCustomer(id: string): Promise<{ success: boolean; mode?: 'deleted' | 'archived'; message?: string }> {
     const len = this.customers.length;
     this.customers = this.customers.filter((c) => c.id !== id);
-    return this.customers.length < len;
+    const deleted = this.customers.length < len;
+    return {
+      success: deleted,
+      mode: 'deleted',
+      message: deleted ? 'Customer deleted successfully.' : 'Customer not found.',
+    };
   }
 
   async getTopCustomers(limit = 5): Promise<Customer[]> {

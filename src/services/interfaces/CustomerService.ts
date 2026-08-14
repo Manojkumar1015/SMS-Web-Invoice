@@ -6,6 +6,6 @@ export interface ICustomerService {
   getCustomerById(id: string): Promise<Customer | null>;
   createCustomer(data: CustomerCreateInput): Promise<Customer>;
   updateCustomer(id: string, data: Partial<CustomerCreateInput>): Promise<Customer>;
-  deleteCustomer(id: string): Promise<boolean>;
+  deleteCustomer(id: string): Promise<{ success: boolean; mode?: 'deleted' | 'archived'; message?: string }>;
   getTopCustomers(limit?: number): Promise<Customer[]>;
 }

@@ -16,6 +16,11 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Mail, MessageSquare, Download, ExternalLink, AlertCircle, CheckCircle2, ShieldAlert } from 'lucide-react';
 import { CurrencyDisplay } from '@/components/ui/currency-display';
 
+import { normalizePhoneNumber } from '@/lib/phone';
+import { generateShareToken } from '@/lib/share-token';
+import { formatDate } from '@/lib/formatters';
+import { useToast } from '@/hooks/use-toast';
+
 export interface SendDocumentData {
   id: string;
   type: 'Invoice' | 'Quote';
@@ -23,7 +28,11 @@ export interface SendDocumentData {
   customerName: string;
   customerEmail: string;
   customerPhone?: string;
+  date?: string;
+  dueDate?: string;
   total: number;
+  amountPaid?: number;
+  amountDue?: number;
 }
 
 interface SendDocumentDialogProps {
@@ -33,43 +42,54 @@ interface SendDocumentDialogProps {
   onSuccessRedirect?: () => void;
 }
 
+function buildWhatsAppMessage(doc: SendDocumentData): string {
+  const isInvoice = doc.type === 'Invoice';
+  const shareToken = generateShareToken(doc.id);
+  const shareUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/invoice/share/${shareToken}`
+    : `/invoice/share/${shareToken}`;
+
+  const dateStr = formatDate(doc.date || '', 'dd MMM yyyy');
+  const dueDateStr = formatDate(doc.dueDate || '', 'dd MMM yyyy');
+  const totalStr = `₹${doc.total.toLocaleString('en-IN')}`;
+  const paidStr = `₹${(doc.amountPaid || 0).toLocaleString('en-IN')}`;
+  const dueStr = `₹${(doc.amountDue ?? doc.total).toLocaleString('en-IN')}`;
+
+  if (isInvoice) {
+    return `Hello ${doc.customerName},\n\nPlease find your invoice details:\n\nInvoice No: ${doc.number}\nInvoice Date: ${dateStr}\nDue Date: ${dueDateStr}\nTotal Amount: ${totalStr}\nAmount Paid: ${paidStr}\nBalance Due: ${dueStr}\n\nThank you for your business.\n\nView your invoice online:\n${shareUrl}`;
+  }
+
+  return `Hello ${doc.customerName},\n\nPlease find your quote details:\n\nQuote No: ${doc.number}\nTotal Amount: ${totalStr}\n\nThank you for your business.`;
+}
+
 export function SendDocumentDialog({
   open,
   onOpenChange,
   document,
   onSuccessRedirect,
 }: SendDocumentDialogProps) {
+  const { toast } = useToast();
   const isInvoice = document?.type === 'Invoice';
-  const cleanPhone = (document?.customerPhone || '').replace(/[^0-9+]/g, '');
 
   const [emailTo, setEmailTo] = React.useState(document?.customerEmail || '');
   const [emailSubject, setEmailSubject] = React.useState(
     document ? `${document.type} ${document.number} from SMS Billing` : ''
   );
-  const [emailBody, setEmailBody] = React.useState(
-    document
-      ? `Dear ${document.customerName},\n\nPlease find attached ${document.type} ${document.number} for ₹${document.total.toLocaleString('en-IN')}.\n\nYou can view and download your document online:\n${typeof window !== 'undefined' ? window.location.origin : ''}/app/${isInvoice ? 'invoices' : 'quotes'}/${document.id}\n\nThank you for your business!`
-      : ''
-  );
+  const [emailBody, setEmailBody] = React.useState('');
 
-  const [whatsappPhone, setWhatsappPhone] = React.useState(cleanPhone);
-  const [whatsappMessage, setWhatsappMessage] = React.useState(
-    document
-      ? `Hello ${document.customerName}, here is your ${document.type} *${document.number}* for *₹${document.total.toLocaleString('en-IN')}*.\n\nView or download your document here:\n${typeof window !== 'undefined' ? window.location.origin : ''}/app/${isInvoice ? 'invoices' : 'quotes'}/${document.id}`
-      : ''
-  );
+  const [whatsappPhone, setWhatsappPhone] = React.useState('');
+  const [whatsappMessage, setWhatsappMessage] = React.useState('');
 
   React.useEffect(() => {
     if (document) {
-      const inv = document.type === 'Invoice';
       setEmailTo(document.customerEmail || '');
       setEmailSubject(`${document.type} ${document.number} from SMS Billing`);
+
+      const normalized = normalizePhoneNumber(document.customerPhone);
+      setWhatsappPhone(normalized.isValid ? normalized.formatted : document.customerPhone || '');
+      setWhatsappMessage(buildWhatsAppMessage(document));
       setEmailBody(
-        `Dear ${document.customerName},\n\nPlease find attached ${document.type} ${document.number} for ₹${document.total.toLocaleString('en-IN')}.\n\nYou can view and download your document online:\n${typeof window !== 'undefined' ? window.location.origin : ''}/app/${inv ? 'invoices' : 'quotes'}/${document.id}\n\nThank you for your business!`
-      );
-      setWhatsappPhone((document.customerPhone || '').replace(/[^0-9+]/g, ''));
-      setWhatsappMessage(
-        `Hello ${document.customerName}, here is your ${document.type} *${document.number}* for *₹${document.total.toLocaleString('en-IN')}*.\n\nView or download your document here:\n${typeof window !== 'undefined' ? window.location.origin : ''}/app/${inv ? 'invoices' : 'quotes'}/${document.id}`
+        `Dear ${document.customerName},\n\nPlease find details for ${document.type} ${document.number} for ₹${document.total.toLocaleString('en-IN')}.\n\nThank you for your business!`
       );
     }
   }, [document]);
@@ -82,9 +102,18 @@ export function SendDocumentDialog({
   };
 
   const handleOpenWhatsapp = () => {
-    const phoneToUse = whatsappPhone.replace(/[^0-9]/g, '');
-    const waUrl = `https://wa.me/${phoneToUse}?text=${encodeURIComponent(whatsappMessage)}`;
-    window.open(waUrl, '_blank');
+    const normalized = normalizePhoneNumber(whatsappPhone);
+    if (!normalized.isValid) {
+      toast({
+        title: 'Phone Number Missing',
+        description: 'Customer phone number is missing. Add a phone number before sending through WhatsApp.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const waUrl = `https://wa.me/${normalized.fullNumber}?text=${encodeURIComponent(whatsappMessage)}`;
+    window.open(waUrl, '_blank', 'noopener,noreferrer');
   };
 
   const handleDownloadPdf = () => {

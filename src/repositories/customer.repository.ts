@@ -99,6 +99,41 @@ export class CustomerRepository {
     return this.update(id, organizationId, { is_active: false });
   }
 
+  async getDependentRecordCounts(id: string, organizationId: string): Promise<number> {
+    const supabase = createClient();
+
+    const { count: invCount } = await (supabase.from('invoices' as any) as any)
+      .select('id', { count: 'exact', head: true })
+      .eq('customer_id', id)
+      .eq('organization_id', organizationId);
+
+    const { count: quoteCount } = await (supabase.from('quotes' as any) as any)
+      .select('id', { count: 'exact', head: true })
+      .eq('customer_id', id)
+      .eq('organization_id', organizationId);
+
+    const { count: payCount } = await (supabase.from('payments' as any) as any)
+      .select('id', { count: 'exact', head: true })
+      .eq('customer_id', id)
+      .eq('organization_id', organizationId);
+
+    return (invCount || 0) + (quoteCount || 0) + (payCount || 0);
+  }
+
+  async hardDelete(id: string, organizationId: string): Promise<boolean> {
+    const supabase = createClient();
+    const { error } = await (supabase.from('customers' as any) as any)
+      .delete()
+      .eq('id', id)
+      .eq('organization_id', organizationId);
+
+    if (error) {
+      throw new DatabaseError(`Failed to delete customer: ${error.message}`);
+    }
+
+    return true;
+  }
+
   async getNextCustomerNumber(organizationId: string): Promise<string> {
     const supabase = createClient();
     const { count } = await (supabase.from('customers' as any) as any)

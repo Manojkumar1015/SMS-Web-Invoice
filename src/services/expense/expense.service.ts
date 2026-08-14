@@ -1,5 +1,6 @@
 import { ExpenseRepository, ExpenseQueryOptions } from '@/repositories/expense.repository';
 import { AuthContext, requireRole } from '@/lib/api/auth-context';
+import { ValidationError } from '@/lib/api/errors';
 import { logAuditEvent } from '@/lib/api/audit';
 import { Expense, ExpenseCreateInput } from '@/types/expense';
 
@@ -10,7 +11,7 @@ export class ExpenseService {
     return {
       id: row.id,
       expenseNumber: row.expense_number,
-      expenseType: 'business',
+      expenseType: (row.expense_scope || row.expense_type || 'business') as any,
       category: row.category,
       date: row.expense_date ? new Date(row.expense_date).toISOString().split('T')[0] : '',
       amount: Number(row.amount) || 0,
@@ -18,7 +19,9 @@ export class ExpenseService {
       totalAmount: Number(row.amount) || 0,
       vendorName: row.vendor || '',
       description: row.description,
-      billable: false,
+      billable: Boolean(row.billable),
+      customerId: row.customer_id || undefined,
+      customerName: row.customer?.display_name || undefined,
       status: row.status || 'recorded',
       paymentMethod: row.payment_method || 'bank_transfer',
       notes: row.notes || undefined,
@@ -38,6 +41,10 @@ export class ExpenseService {
     };
   }
 
+  async getExpenseSummary(context: AuthContext) {
+    return this.repo.getMetrics(context.organization.id);
+  }
+
   async getExpenseById(context: AuthContext, id: string): Promise<Expense> {
     const row = await this.repo.getById(id, context.organization.id);
     return this.mapRowToExpense(row);
@@ -46,11 +53,21 @@ export class ExpenseService {
   async createExpense(context: AuthContext, input: ExpenseCreateInput): Promise<Expense> {
     requireRole(['Owner', 'Admin', 'Accountant', 'Staff'], context.membership.role);
 
+    const expenseScope = input.expenseType || 'business';
+    const customerId = expenseScope === 'customer' && input.customerId ? input.customerId.trim() : null;
+
+    if (expenseScope === 'customer' && !customerId) {
+      throw new ValidationError('Target customer is required for Customer Expense');
+    }
+
     const expenseDate = input.expenseDate || input.date || new Date().toISOString().split('T')[0];
     const vendor = input.vendorName || input.vendor || null;
 
     const payload = {
       organization_id: context.organization.id,
+      expense_scope: expenseScope,
+      billable: Boolean(input.billable),
+      customer_id: customerId,
       category: input.category,
       description: input.description,
       amount: input.amount,
@@ -81,6 +98,9 @@ export class ExpenseService {
       updated_by: context.user.id,
     };
 
+    if (input.expenseType) payload.expense_scope = input.expenseType;
+    if (input.billable !== undefined) payload.billable = Boolean(input.billable);
+    if (input.customerId !== undefined) payload.customer_id = input.customerId || null;
     if (input.category) payload.category = input.category;
     if (input.description) payload.description = input.description;
     if (input.amount) payload.amount = input.amount;

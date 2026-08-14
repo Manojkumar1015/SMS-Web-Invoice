@@ -42,6 +42,7 @@ export interface Invoice {
     postalCode?: string;
     country?: string;
   };
+  sameAsBillingAddress?: boolean;
   date: string;
   dueDate: string;
   invoiceDate?: string;

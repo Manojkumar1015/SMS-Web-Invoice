@@ -14,8 +14,17 @@ export async function GET(request: NextRequest) {
   try {
     const context = await getAuthContext();
 
+    if (searchParams.get('summary') === 'true') {
+      const summary = await service.getExpenseSummary(context);
+      return successResponse(summary, 200, undefined, requestId);
+    }
+
     const search = searchParams.get('search') || undefined;
     const category = searchParams.get('category') || undefined;
+    const expenseType = searchParams.get('expenseType') || undefined;
+    const billableStr = searchParams.get('billable');
+    const billable = billableStr === 'true' ? true : billableStr === 'false' ? false : undefined;
+    const customerId = searchParams.get('customerId') || undefined;
 
     const { page, pageSize } = validatePaginationParams({
       page: searchParams.get('page') || undefined,
@@ -31,6 +40,9 @@ export async function GET(request: NextRequest) {
     const { data, total } = await service.listExpenses(context, {
       search,
       category,
+      expenseScope: expenseType,
+      billable,
+      customerId,
       page,
       pageSize,
       sortField,
@@ -50,11 +62,23 @@ export async function POST(request: NextRequest) {
   try {
     const context = await getAuthContext();
     const rawBody = await request.json();
+
+    console.log('[POST /api/v1/expenses Diagnostic Payload]:', {
+      expenseScope: rawBody.expenseType,
+      customerIdPresent: Boolean(rawBody.customerId),
+      customerId: rawBody.customerId,
+      billable: rawBody.billable,
+    });
+
     const validated = validateRequestBody(expenseCreateSchema, rawBody);
 
     const created = await service.createExpense(context, validated as any);
+
+    console.log('[POST /api/v1/expenses Success]: Created expense ID:', created.id);
+
     return successResponse(created, 201, undefined, requestId);
   } catch (error) {
+    console.error('[POST /api/v1/expenses Error]:', error);
     return errorResponse(error, requestId);
   }
 }

@@ -19,7 +19,7 @@ export function DocumentPaymentSection({
   branch,
   upiId,
 }: DocumentPaymentSectionProps) {
-  const hasDetails = bankName || accountNumber || ifscCode;
+  const hasDetails = Boolean(bankName || accountNumber || ifscCode || upiId || accountName);
 
   return (
     <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600 space-y-1.5">

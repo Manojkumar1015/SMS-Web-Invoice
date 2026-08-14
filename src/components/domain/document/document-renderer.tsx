@@ -2,14 +2,13 @@
 
 import * as React from 'react';
 import { Invoice } from '@/types/invoice';
-import { Quote, DocumentItem } from '@/types/quote';
+import { Quote } from '@/types/quote';
 import { TemplateConfiguration } from '@/types/template';
 import { CurrencyDisplay } from '@/components/ui/currency-display';
 import { DateDisplay } from '@/components/ui/date-display';
-import { DocumentNumber } from '@/components/ui/document-number';
-import { QuoteStatusBadge } from '@/components/domain/quote/quote-status-badge';
 import { InvoiceStatusBadge } from '@/components/domain/invoice/invoice-status-badge';
-import { cn } from '@/lib/utils';
+import { QuoteStatusBadge } from '@/components/domain/quote/quote-status-badge';
+import { resolveInvoiceAddressDisplay } from '@/lib/formatters';
 
 interface DocumentRendererProps {
   documentType: 'Invoice' | 'Quote';
@@ -23,8 +22,6 @@ export function DocumentRenderer({
   documentType,
   documentData,
   templateConfig,
-  sampleMode = false,
-  className,
 }: DocumentRendererProps) {
   const isInvoice = documentType === 'Invoice';
   const invData = isInvoice ? (documentData as Invoice) : null;
@@ -36,540 +33,260 @@ export function DocumentRenderer({
   const status = documentData.status;
 
   const cfg = templateConfig;
-  const colors = cfg.colors;
-  const font = cfg.typography;
-  const branding = cfg.branding;
-  const header = cfg.header;
-  const customer = cfg.customer;
-  const details = cfg.invoiceDetails;
-  const itemsCfg = cfg.itemsTable;
-  const totals = cfg.totals;
-  const payment = cfg.payment;
-  const notes = cfg.notes;
-  const terms = cfg.terms;
-  const signature = cfg.signature;
-  const footer = cfg.footer;
-  const watermark = cfg.watermark;
+  const primaryColor = cfg.colors?.primary || '#159447';
+  const tableHeaderBg = cfg.colors?.tableHeaderBg || '#E8F5EE';
+  const secondaryColor = cfg.colors?.secondary || '#0E6831';
+  const borderColor = cfg.colors?.border || '#e2e8f0';
 
-  // Font family helper
-  const fontStyle = {
-    fontFamily:
-      font.fontFamily === 'Playfair Display'
-        ? '"Playfair Display", Georgia, serif'
-        : font.fontFamily === 'Lora'
-        ? '"Lora", Georgia, serif'
-        : font.fontFamily === 'Courier Prime'
-        ? '"Courier Prime", monospace'
-        : font.fontFamily === 'Outfit'
-        ? '"Outfit", sans-serif'
-        : font.fontFamily === 'Roboto'
-        ? '"Roboto", sans-serif'
-        : font.fontFamily === 'Plus Jakarta Sans'
-        ? '"Plus Jakarta Sans", sans-serif'
-        : '"Inter", sans-serif',
-  };
+  const branding = cfg.branding || {};
+  const payment = cfg.payment || {};
 
-  // Active section ordering
-  const activeSections = [...(cfg.sections || [])].sort((a, b) => a.order - b.order);
+  const resolvedAddress = resolveInvoiceAddressDisplay({
+    sameAsBillingAddress: isInvoice ? invData?.sameAsBillingAddress : undefined,
+    billingAddress: documentData.billingAddress,
+    shippingAddress: documentData.shippingAddress,
+  });
 
-  // Render individual sections dynamically
-  const renderHeader = () => {
-    const isBanner = header.style === 'banner' || header.showBannerBg;
+  const billingAddr = resolvedAddress.billingAddress;
+  const shippingAddr = resolvedAddress.shippingAddress;
+  const showShipping = resolvedAddress.showShippingBlock && shippingAddr;
 
-    return (
-      <div
-        className={cn(
-          'relative pb-6 mb-6 border-b transition-colors',
-          isBanner && 'p-6 rounded-xl text-white mb-6',
-          header.style === 'centered' && 'text-center'
-        )}
-        style={{
-          borderColor: colors.border,
-          backgroundColor: isBanner ? colors.primary : undefined,
-        }}
-      >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          {/* Logo & Company Details */}
-          <div className={cn('flex items-center space-x-3', header.style === 'centered' && 'justify-center w-full')}>
-            {branding.logoVisible && (
-              <div
-                className={cn(
-                  'flex items-center justify-center rounded-xl font-black shadow-xs shrink-0',
-                  branding.logoSize === 'small' ? 'h-10 w-10 text-base' : branding.logoSize === 'large' ? 'h-16 w-16 text-2xl' : 'h-12 w-12 text-xl',
-                  isBanner ? 'bg-white text-slate-900' : 'text-white'
-                )}
-                style={{ backgroundColor: isBanner ? '#ffffff' : colors.primary, color: isBanner ? colors.primary : '#ffffff' }}
-              >
-                {branding.logoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={branding.logoUrl} alt="Logo" className="h-full w-full object-contain p-1 rounded-xl" />
-                ) : (
-                  'SMS'
-                )}
-              </div>
-            )}
+  const hasBankDetails = Boolean(
+    payment.bankName || payment.accountNumber || payment.ifscCode || payment.upiId || payment.accountName
+  );
 
-            <div>
-              {branding.showCompanyName && (
-                <h2 className={cn('font-bold', isBanner ? 'text-white text-lg' : 'text-slate-900 text-base')} style={{ fontSize: `${font.headingSize}px` }}>
-                  {branding.companyName || documentData.customerName}
-                </h2>
-              )}
-              {branding.showCompanyDetails && (
-                <div className={cn('text-xs mt-0.5 space-y-0.5', isBanner ? 'text-slate-200' : 'text-slate-500')}>
-                  {branding.companyGstin && <p>GSTIN: {branding.companyGstin} {branding.companyPan ? `• PAN: ${branding.companyPan}` : ''}</p>}
-                  {branding.companyAddress && <p>{branding.companyAddress}</p>}
-                  {branding.companyEmail && <p>{branding.companyEmail} {branding.companyPhone ? `• ${branding.companyPhone}` : ''}</p>}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Document Title, Number & Dates */}
-          <div className={cn('text-left sm:text-right', header.style === 'centered' && 'text-center mt-3')}>
-            <div className="flex items-center sm:justify-end space-x-2">
-              <span className={cn('text-2xl font-black uppercase tracking-tight', isBanner ? 'text-white' : 'text-slate-900')} style={{ color: isBanner ? '#ffffff' : colors.primary }}>
-                {documentType}
-              </span>
-              {isInvoice ? <InvoiceStatusBadge status={status} /> : <QuoteStatusBadge status={status} />}
-            </div>
-
-            {details.showInvoiceNumber && (
-              <div className="mt-1.5">
-                <DocumentNumber number={docNumber} type={documentType} />
-              </div>
-            )}
-
-            <div className={cn('mt-2 text-xs flex flex-wrap sm:justify-end gap-x-4 gap-y-1', isBanner ? 'text-slate-200' : 'text-slate-600')}>
-              {details.showDate && (
-                <span>
-                  <strong>Date:</strong> <DateDisplay date={date} className={isBanner ? 'text-white' : 'text-slate-900'} />
-                </span>
-              )}
-              {details.showDueDate && (
-                <span>
-                  <strong>{isInvoice ? 'Due Date:' : 'Valid Until:'}</strong>{' '}
-                  <DateDisplay date={dueDateOrExpiry} className={isBanner ? 'text-white' : 'text-slate-900'} />
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderCustomer = () => {
-    return (
-      <div
-        className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 rounded-xl border mb-6 text-xs"
-        style={{ backgroundColor: `${colors.tableHeaderBg}40`, borderColor: colors.border }}
-      >
-        <div>
-          <span className="text-[10px] font-bold uppercase tracking-wider block mb-1.5" style={{ color: colors.secondary }}>
-            Billed To:
-          </span>
-          {customer.showName && <h4 className="font-bold text-sm text-slate-900">{documentData.customerName}</h4>}
-          {customer.showEmail && <p className="text-slate-600 mt-0.5">{documentData.customerEmail}</p>}
-          {customer.showPhone && documentData.customerPhone && <p className="text-slate-600">{documentData.customerPhone}</p>}
-          {customer.showGstin && documentData.customerGstin && (
-            <p className="font-mono mt-1 font-semibold" style={{ color: colors.primary }}>
-              GSTIN: {documentData.customerGstin}
-            </p>
-          )}
-
-          {customer.showBillingAddress && documentData.billingAddress && (
-            <div className="mt-2 text-slate-600 leading-relaxed">
-              <span className="font-semibold text-slate-700">Billing Address:</span>
-              <br />
-              {documentData.billingAddress.street && <>{documentData.billingAddress.street}<br /></>}
-              {documentData.billingAddress.city}{documentData.billingAddress.city && ','} {documentData.billingAddress.state} {documentData.billingAddress.postalCode}
-              {documentData.billingAddress.country && <><br />{documentData.billingAddress.country}</>}
-            </div>
-          )}
-        </div>
-
-        <div>
-          <span className="text-[10px] font-bold uppercase tracking-wider block mb-1.5" style={{ color: colors.secondary }}>
-            Shipping Address:
-          </span>
-          {customer.showShippingAddress && documentData.shippingAddress ? (
-            <p className="text-slate-600 leading-relaxed">
-              <strong className="font-semibold text-slate-700 block">{documentData.customerName}</strong>
-              {documentData.shippingAddress.street && <>{documentData.shippingAddress.street}<br /></>}
-              {documentData.shippingAddress.city}{documentData.shippingAddress.city && ','} {documentData.shippingAddress.state} {documentData.shippingAddress.postalCode}
-              {documentData.shippingAddress.country && <><br />{documentData.shippingAddress.country}</>}
-            </p>
+  return (
+    <div className="bg-white text-slate-900 rounded-2xl shadow-sm border border-slate-200 p-8 max-w-4xl mx-auto space-y-6 font-sans">
+      {/* 1. TOP HEADER (Zoho Style: Logo Left, Company Details Right) */}
+      <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+        {/* Business Logo */}
+        <div className="flex items-center space-x-3">
+          {branding.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={branding.logoUrl} alt="Logo" className="h-16 w-16 object-contain rounded-full border border-slate-100 p-1" />
           ) : (
-            <p className="text-slate-500 italic leading-relaxed">Same as billing address</p>
+            <div
+              className="h-16 w-16 rounded-full text-white font-black text-2xl flex items-center justify-center shadow-xs shrink-0"
+              style={{ backgroundColor: primaryColor }}
+            >
+              {(branding.companyName || 'SMS')[0]}
+            </div>
           )}
         </div>
+
+        {/* Business Name & Address */}
+        <div className="text-left sm:text-right space-y-0.5 text-xs text-slate-600">
+          <h1 className="text-base font-extrabold text-slate-900">{branding.companyName || 'SMS Billing'}</h1>
+          {branding.companyGstin && <p className="font-mono text-[11px]">GSTIN: <strong>{branding.companyGstin}</strong></p>}
+          {branding.companyAddress && <p className="whitespace-pre-line leading-relaxed">{branding.companyAddress}</p>}
+          {branding.companyPhone && <p>Phone: {branding.companyPhone}</p>}
+          {branding.companyEmail && <p>Email: {branding.companyEmail}</p>}
+        </div>
       </div>
-    );
-  };
 
-  const renderItemsTable = () => {
-    const visibleCols = (itemsCfg.columns || []).filter((c) => c.visible);
+      {/* 2. CENTERED INVOICE TITLE WITH HORIZONTAL ACCENT DIVIDERS */}
+      <div className="flex items-center space-x-4 py-2">
+        <div className="flex-1 h-[1px] bg-slate-200" />
+        <span className="text-xl font-extrabold tracking-widest text-slate-800 uppercase px-2">
+          {documentType === 'Invoice' ? 'INVOICE' : 'QUOTATION'}
+        </span>
+        <div className="flex-1 h-[1px] bg-slate-200" />
+      </div>
 
-    return (
-      <div className="overflow-x-auto rounded-xl border mb-6" style={{ borderColor: colors.border }}>
-        <table className="w-full text-left text-xs">
-          <thead
-            className="uppercase text-[10px] font-bold tracking-wider border-b"
-            style={{
-              backgroundColor: itemsCfg.headerBg ? colors.tableHeaderBg : 'transparent',
-              color: colors.tableHeaderText || colors.primary,
-              borderColor: colors.border,
-            }}
-          >
-            <tr>
-              {visibleCols.map((col) => (
-                <th
-                  key={col.key}
-                  className={cn(
-                    'px-3 py-2.5',
-                    col.align === 'right' && 'text-right',
-                    col.align === 'center' && 'text-center'
-                  )}
-                  style={{ width: col.width }}
-                >
-                  {col.label}
-                </th>
-              ))}
+      {/* 3. BILL TO / SHIP TO & INVOICE NUMBER */}
+      <div className="flex flex-col sm:flex-row justify-between items-start gap-6 text-xs">
+        {/* Left: Bill To & Ship To */}
+        <div className="space-y-4 flex-1">
+          {/* Bill To */}
+          <div>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Bill To</span>
+            <div className="font-extrabold text-slate-900 text-sm">{documentData.customerName}</div>
+            {documentData.customerEmail && <div className="text-slate-500">{documentData.customerEmail}</div>}
+            {documentData.customerPhone && <div className="text-slate-500">{documentData.customerPhone}</div>}
+            {documentData.customerGstin && <div className="font-mono text-emerald-700 font-bold mt-0.5">GSTIN: {documentData.customerGstin}</div>}
+
+            {billingAddr && (
+              <div className="text-slate-600 mt-1 leading-relaxed">
+                {billingAddr.street && <div>{billingAddr.street}</div>}
+                <div>
+                  {[billingAddr.city, billingAddr.state, billingAddr.postalCode].filter(Boolean).join(', ')}
+                </div>
+                {billingAddr.country && <div>{billingAddr.country}</div>}
+              </div>
+            )}
+          </div>
+
+          {/* Ship To (if separate) */}
+          {showShipping && shippingAddr && (
+            <div className="pt-2 border-t border-slate-100">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Ship To</span>
+              <div className="font-bold text-slate-800">{documentData.customerName}</div>
+              <div className="text-slate-600 mt-0.5 leading-relaxed">
+                {shippingAddr.street && <div>{shippingAddr.street}</div>}
+                <div>
+                  {[shippingAddr.city, shippingAddr.state, shippingAddr.postalCode].filter(Boolean).join(', ')}
+                </div>
+                {shippingAddr.country && <div>{shippingAddr.country}</div>}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right: Invoice # & Status */}
+        <div className="text-left sm:text-right space-y-2">
+          <div>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+              {documentType === 'Invoice' ? 'Invoice#' : 'Quote#'}
+            </span>
+            <div className="text-xl font-black tracking-tight text-slate-900 font-mono mt-0.5">
+              {docNumber}
+            </div>
+          </div>
+          <div>
+            {isInvoice ? <InvoiceStatusBadge status={status} /> : <QuoteStatusBadge status={status} />}
+          </div>
+        </div>
+      </div>
+
+      {/* 4. 3-COLUMN INVOICE INFORMATION TABLE (Zoho Style) */}
+      <div className="rounded-xl overflow-hidden border border-slate-200">
+        <div className="grid grid-cols-3 text-white text-xs font-bold px-4 py-2.5" style={{ backgroundColor: primaryColor }}>
+          <div>{documentType === 'Invoice' ? 'Invoice Date' : 'Quote Date'}</div>
+          <div>Terms</div>
+          <div>{documentType === 'Invoice' ? 'Due Date' : 'Expiry Date'}</div>
+        </div>
+        <div className="grid grid-cols-3 text-xs font-mono text-slate-800 px-4 py-2.5 bg-slate-50 border-t border-slate-200">
+          <div><DateDisplay date={date} /></div>
+          <div>{invData?.paymentTerms || 'Due on Receipt'}</div>
+          <div><DateDisplay date={dueDateOrExpiry} /></div>
+        </div>
+      </div>
+
+      {/* 5. LINE ITEM TABLE */}
+      <div className="rounded-xl overflow-hidden border border-slate-200">
+        <table className="w-full text-xs text-left">
+          <thead>
+            <tr className="text-white font-bold" style={{ backgroundColor: primaryColor }}>
+              <th className="py-2.5 px-3 text-center w-10">#</th>
+              <th className="py-2.5 px-3">Item & Description</th>
+              <th className="py-2.5 px-3 text-right w-20">Qty</th>
+              <th className="py-2.5 px-3 text-right w-28">Rate</th>
+              <th className="py-2.5 px-3 text-right w-28">Amount</th>
             </tr>
           </thead>
-          <tbody className="divide-y" style={{ borderColor: colors.border }}>
-            {documentData.items.map((item: DocumentItem, idx: number) => (
-              <tr
-                key={item.id || idx}
-                className={cn(itemsCfg.stripedRows && idx % 2 === 1 && 'bg-slate-50/60')}
-              >
-                {visibleCols.map((col) => {
-                  if (col.key === 'index') {
-                    return (
-                      <td key={col.key} className="px-3 py-2.5 text-center font-mono text-slate-400">
-                        {idx + 1}
-                      </td>
-                    );
-                  }
-                  if (col.key === 'item') {
-                    const code = item.classificationCode || item.hsn;
-                    const type = item.classificationType || (code ? 'HSN/SAC' : undefined);
-                    return (
-                      <td key={col.key} className="px-3 py-2.5">
-                        <div className="font-bold text-slate-900 flex items-center gap-1.5 flex-wrap">
-                          <span>{item.name}</span>
-                          {code && (
-                            <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
-                              {type && type !== 'HSN/SAC' ? `${type}: ${code}` : `${code}`}
-                            </span>
-                          )}
-                        </div>
-                        {item.description && (
-                          <div className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">{item.description}</div>
-                        )}
-                      </td>
-                    );
-                  }
-                  if (col.key === 'hsn') {
-                    const code = item.classificationCode || item.hsn;
-                    return (
-                      <td key={col.key} className="px-3 py-2.5 text-center font-mono text-slate-600">
-                        {code || '—'}
-                      </td>
-                    );
-                  }
-                  if (col.key === 'quantity') {
-                    return (
-                      <td key={col.key} className="px-3 py-2.5 text-right font-medium text-slate-800 whitespace-nowrap">
-                        {item.quantity} {item.unit}
-                      </td>
-                    );
-                  }
-                  if (col.key === 'rate') {
-                    return (
-                      <td key={col.key} className="px-3 py-2.5 text-right font-mono text-slate-700 whitespace-nowrap">
-                        <CurrencyDisplay amount={item.rate} />
-                      </td>
-                    );
-                  }
-                  if (col.key === 'discount') {
-                    return (
-                      <td key={col.key} className="px-3 py-2.5 text-right text-emerald-600 font-mono whitespace-nowrap">
-                        {item.discount > 0 ? `- ₹${item.discount.toLocaleString('en-IN')}` : '-'}
-                      </td>
-                    );
-                  }
-                  if (col.key === 'tax') {
-                    return (
-                      <td key={col.key} className="px-3 py-2.5 text-right text-slate-500 font-mono whitespace-nowrap">
-                        {item.taxRate}%
-                      </td>
-                    );
-                  }
-                  if (col.key === 'amount') {
-                    return (
-                      <td key={col.key} className="px-3 py-2.5 text-right font-extrabold text-slate-900 font-mono whitespace-nowrap">
-                        <CurrencyDisplay amount={item.amount} />
-                      </td>
-                    );
-                  }
-                  return <td key={col.key} className="px-3 py-2.5"></td>;
-                })}
+          <tbody className="divide-y divide-slate-100">
+            {(documentData.items || []).map((item, idx) => (
+              <tr key={item.id || idx} className="hover:bg-slate-50/80 transition-colors">
+                <td className="py-3 px-3 text-center text-slate-400 font-mono text-[11px]">{idx + 1}</td>
+                <td className="py-3 px-3">
+                  <div className="font-bold text-slate-900 text-xs">{item.name}</div>
+                  {item.description && <div className="text-[11px] text-slate-500 mt-0.5">{item.description}</div>}
+                </td>
+                <td className="py-3 px-3 text-right font-mono text-slate-700">
+                  {item.quantity} {item.unit ? <span className="text-[10px] text-slate-400 font-sans">{item.unit}</span> : ''}
+                </td>
+                <td className="py-3 px-3 text-right font-mono text-slate-700">
+                  <CurrencyDisplay amount={item.rate || item.unitPrice || 0} />
+                </td>
+                <td className="py-3 px-3 text-right font-mono font-bold text-slate-900">
+                  <CurrencyDisplay amount={item.amount || (item as any).total || 0} />
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-    );
-  };
 
-  const renderTotals = () => {
-    return (
-      <div className="flex flex-col sm:flex-row justify-between gap-6 border-t pt-6 text-xs mb-6" style={{ borderColor: colors.border }}>
-        <div className="flex-1">
-          {cfg.taxes.showTaxSummary && cfg.taxes.breakdownGst && (
-            <div className="p-3 rounded-xl border text-xs space-y-1" style={{ backgroundColor: `${colors.tableHeaderBg}30`, borderColor: colors.border }}>
-              <span className="text-[10px] font-bold uppercase tracking-wider block" style={{ color: colors.secondary }}>
-                GST Tax Breakdown:
+      {/* 6. TOTALS & PAYMENT DETAILS AREA */}
+      <div className="flex flex-col sm:flex-row justify-between items-start gap-6 pt-2">
+        {/* Left: Payment & Banking Details Box */}
+        <div className="flex-1 w-full">
+          {hasBankDetails ? (
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2 text-xs">
+              <span className="text-[10px] font-bold uppercase tracking-wider block" style={{ color: secondaryColor }}>
+                Payment & Banking Details:
               </span>
-              <div className="grid grid-cols-3 gap-2 font-mono text-[11px] pt-1">
-                <div>
-                  <span className="text-slate-500 block">CGST (9%):</span>
-                  <span className="font-semibold text-slate-800">
-                    <CurrencyDisplay amount={documentData.taxTotal / 2} />
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-500 block">SGST (9%):</span>
-                  <span className="font-semibold text-slate-800">
-                    <CurrencyDisplay amount={documentData.taxTotal / 2} />
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-500 block">Total GST:</span>
-                  <span className="font-bold" style={{ color: colors.primary }}>
-                    <CurrencyDisplay amount={documentData.taxTotal} />
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="w-full sm:w-80 space-y-2.5 text-right font-mono">
-          {totals.showSubtotal && (
-            <div className="flex justify-between text-slate-600">
-              <span className="font-sans text-slate-500">Subtotal:</span>
-              <CurrencyDisplay amount={documentData.subtotal} className="font-semibold text-slate-800" />
-            </div>
-          )}
-
-          {totals.showDiscount && documentData.discountTotal > 0 && (
-            <div className="flex justify-between text-emerald-600">
-              <span className="font-sans text-emerald-700">Discount Total:</span>
-              <span>- <CurrencyDisplay amount={documentData.discountTotal} /></span>
-            </div>
-          )}
-
-          {totals.showTax && (
-            <div className="flex justify-between text-slate-600">
-              <span className="font-sans text-slate-500">Tax Total (GST):</span>
-              <CurrencyDisplay amount={documentData.taxTotal} className="font-semibold text-slate-800" />
-            </div>
-          )}
-
-          {totals.showRoundOff && isInvoice && invData?.roundOff !== 0 && invData?.roundOff !== undefined && (
-            <div className="flex justify-between text-slate-500">
-              <span className="font-sans text-slate-500">Round Off:</span>
-              <CurrencyDisplay amount={invData.roundOff} />
-            </div>
-          )}
-
-          {totals.showGrandTotal && (
-            <div className="flex justify-between text-sm font-extrabold border-t pt-2.5 text-slate-900" style={{ borderColor: colors.border }}>
-              <span className="font-sans">Grand Total:</span>
-              <CurrencyDisplay amount={documentData.total} className="text-base font-black" style={{ color: colors.primary }} />
-            </div>
-          )}
-
-          {isInvoice && invData?.amountPaid !== undefined && (
-            <div className="flex justify-between text-emerald-600 font-bold pt-1">
-              <span className="font-sans text-emerald-700">Amount Paid:</span>
-              <CurrencyDisplay amount={invData.amountPaid} />
-            </div>
-          )}
-
-          {isInvoice && invData?.amountDue !== undefined && (
-            <div className="flex justify-between text-red-600 font-black text-sm border-t border-dashed pt-2 bg-red-50/50 p-2 rounded-lg" style={{ borderColor: colors.border }}>
-              <span className="font-sans text-red-700">Balance Due:</span>
-              <CurrencyDisplay amount={invData.amountDue} />
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  const renderPayment = () => {
-    if (!payment.showBankDetails) return null;
-
-    const hasBankDetails = Boolean(
-      payment.bankName || payment.accountNumber || payment.ifscCode
-    );
-
-    return (
-      <div className="p-4 rounded-xl border text-xs text-slate-600 space-y-2 mb-6" style={{ backgroundColor: `${colors.tableHeaderBg}30`, borderColor: colors.border }}>
-        <span className="text-[10px] font-bold uppercase tracking-wider block" style={{ color: colors.secondary }}>
-          Payment & Banking Details:
-        </span>
-        {hasBankDetails ? (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="sm:col-span-2 space-y-1">
-              {payment.bankName && <p className="font-bold text-slate-900 text-sm">{payment.bankName}</p>}
+              {payment.bankName && <div className="font-bold text-slate-900">{payment.bankName}</div>}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 font-mono text-[11px] text-slate-700">
                 {payment.accountName && <div>A/C Name: <strong>{payment.accountName}</strong></div>}
                 {payment.accountNumber && <div>A/C No: <strong>{payment.accountNumber}</strong></div>}
                 {payment.ifscCode && <div>IFSC Code: <strong>{payment.ifscCode}</strong></div>}
                 {payment.branchName && <div>Branch: <strong>{payment.branchName}</strong></div>}
+                {payment.upiId && <div className="col-span-2 text-indigo-700 font-bold">UPI ID: {payment.upiId}</div>}
               </div>
-              {payment.instructions && <p className="text-[11px] text-slate-500 pt-1">{payment.instructions}</p>}
             </div>
+          ) : (
+            <div className="p-4 rounded-xl border border-dashed border-slate-200 text-xs text-slate-400 italic">
+              Payment details not configured
+            </div>
+          )}
+        </div>
 
-            {payment.showUpiQr && payment.upiId && (
-              <div className="flex flex-col items-center justify-center p-2 rounded-lg border bg-white border-slate-200 text-center">
-                <div className="h-16 w-16 border-2 border-dashed border-indigo-300 rounded flex items-center justify-center bg-indigo-50/50 text-[9px] font-bold text-indigo-700">
-                  UPI QR CODE
-                </div>
-                <span className="text-[10px] font-mono text-slate-600 mt-1">{payment.upiId}</span>
-              </div>
-            )}
+        {/* Right: Summary & Balance Due Box */}
+        <div className="w-full sm:w-80 rounded-xl overflow-hidden border border-slate-200 text-xs p-4 space-y-2.5" style={{ backgroundColor: tableHeaderBg }}>
+          <div className="flex justify-between text-slate-600 font-medium">
+            <span>Sub Total</span>
+            <span className="font-mono text-slate-800"><CurrencyDisplay amount={documentData.subtotal} /></span>
           </div>
-        ) : (
-          <p className="text-xs text-slate-400 italic">Payment details not configured</p>
+
+          {documentData.discountTotal > 0 && (
+            <div className="flex justify-between text-emerald-700 font-medium">
+              <span>Discount</span>
+              <span className="font-mono">-[<CurrencyDisplay amount={documentData.discountTotal} />]</span>
+            </div>
+          )}
+
+          <div className="flex justify-between text-slate-600 font-medium">
+            <span>Tax Rate (GST)</span>
+            <span className="font-mono text-slate-800"><CurrencyDisplay amount={documentData.taxTotal} /></span>
+          </div>
+
+          <div className="flex justify-between font-extrabold text-sm text-slate-900 border-t border-slate-300 pt-2">
+            <span>Total</span>
+            <span className="font-mono" style={{ color: primaryColor }}><CurrencyDisplay amount={documentData.total} /></span>
+          </div>
+
+          {isInvoice && invData && (
+            <>
+              <div className="flex justify-between text-slate-600 font-medium">
+                <span>Amount Paid</span>
+                <span className="font-mono text-slate-800"><CurrencyDisplay amount={invData.amountPaid} /></span>
+              </div>
+
+              <div className="flex justify-between items-center font-black text-sm p-2.5 rounded-lg text-white mt-2" style={{ backgroundColor: primaryColor }}>
+                <span>Balance Due</span>
+                <span className="font-mono"><CurrencyDisplay amount={invData.amountDue} /></span>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* 7. CUSTOMER NOTES & TERMS */}
+      <div className="space-y-4 pt-4 border-t border-slate-200 text-xs">
+        {documentData.notes && (
+          <div>
+            <span className="font-bold text-slate-700 block mb-1">Customer Notes:</span>
+            <p className="text-slate-600 leading-relaxed whitespace-pre-line bg-slate-50 p-3 rounded-lg border border-slate-200">
+              {documentData.notes}
+            </p>
+          </div>
+        )}
+
+        {documentData.terms && (
+          <div>
+            <span className="font-bold text-slate-700 block mb-1">Terms & Conditions:</span>
+            <p className="text-slate-500 leading-relaxed whitespace-pre-line text-[11px]">
+              {documentData.terms}
+            </p>
+          </div>
         )}
       </div>
-    );
-  };
 
-  const renderNotes = () => {
-    if (!notes.visible || (!documentData.notes && !notes.text)) return null;
-
-    return (
-      <div className="pt-4 border-t text-xs text-slate-600 mb-4" style={{ borderColor: colors.border }}>
-        <span className="font-bold uppercase text-[10px] tracking-wider block mb-1" style={{ color: colors.secondary }}>
-          {notes.heading || 'Customer Notes'}:
-        </span>
-        <p className="leading-relaxed whitespace-pre-line text-slate-700 p-3 rounded-lg border" style={{ backgroundColor: `${colors.tableHeaderBg}20`, borderColor: colors.border }}>
-          {documentData.notes || notes.text}
-        </p>
+      {/* Footer */}
+      <div className="text-center text-[10px] text-slate-400 pt-4 border-t border-slate-100">
+        {branding.companyName || 'SMS Billing'} • Official Document
       </div>
-    );
-  };
-
-  const renderTerms = () => {
-    if (!terms.visible || (!documentData.terms && !terms.text)) return null;
-
-    return (
-      <div className="pt-4 border-t text-xs text-slate-600 mb-6" style={{ borderColor: colors.border }}>
-        <span className="font-bold uppercase text-[10px] tracking-wider block mb-1" style={{ color: colors.secondary }}>
-          {terms.heading || 'Terms & Conditions'}:
-        </span>
-        <p className="leading-relaxed whitespace-pre-line text-slate-600 italic">
-          {documentData.terms || terms.text}
-        </p>
-      </div>
-    );
-  };
-
-  const renderSignature = () => {
-    if (!signature.visible) return null;
-
-    return (
-      <div className="flex justify-end pt-6 mb-6">
-        <div className="text-center w-56 space-y-2">
-          <div className="h-16 border-b flex items-center justify-center relative" style={{ borderColor: colors.border }}>
-            {signature.showDigitalStamp && (
-              <div className="absolute inset-0 flex items-center justify-center opacity-80">
-                <span className="font-serif italic text-xs font-bold rotate-[-6deg] border-2 px-3 py-1 rounded" style={{ color: colors.primary, borderColor: colors.secondary }}>
-                  {signature.label || 'Authorized Signatory'}
-                </span>
-              </div>
-            )}
-          </div>
-          <p className="text-xs font-bold text-slate-800">{signature.authorizedPerson || 'Authorized Signatory'}</p>
-          <p className="text-[11px] text-slate-500">{signature.designation || branding.companyName}</p>
-        </div>
-      </div>
-    );
-  };
-
-  const renderFooter = () => {
-    if (!footer.visible) return null;
-
-    return (
-      <div className="pt-6 border-t text-center text-[11px] text-slate-400 space-y-1" style={{ borderColor: colors.border }}>
-        <p>{footer.text}</p>
-        {footer.showPageNumbers && <p className="font-mono text-[10px] text-slate-400">Page 1 of 1</p>}
-      </div>
-    );
-  };
-
-  // Section Component Mapper
-  const sectionComponentMap: Record<string, () => React.ReactNode> = {
-    header: renderHeader,
-    customer: renderCustomer,
-    items: renderItemsTable,
-    totals: renderTotals,
-    payment: renderPayment,
-    notes: renderNotes,
-    terms: renderTerms,
-    signature: renderSignature,
-    footer: renderFooter,
-  };
-
-  return (
-    <div
-      className={cn(
-        'relative max-w-4xl mx-auto border shadow-xl bg-white text-slate-900 overflow-hidden transition-all p-8 sm:p-12',
-        className
-      )}
-      style={{
-        ...fontStyle,
-        borderColor: colors.border,
-        color: colors.text,
-      }}
-    >
-      {/* Top Gold Accent Stripe for White Gold / Elegant templates */}
-      {(cfg.category === 'elegant' || cfg.id === 'tmpl-white-gold') && (
-        <div
-          className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-amber-700 via-yellow-500 to-amber-600"
-          style={{ backgroundColor: colors.primary || '#B8860B' }}
-        />
-      )}
-
-      {/* Watermark Overlay */}
-      {watermark.enabled && (
-        <div className="absolute inset-0 pointer-events-none flex items-center justify-center overflow-hidden z-10">
-          <span
-            className="font-black text-6xl sm:text-8xl tracking-widest uppercase select-none"
-            style={{
-              color: watermark.color || colors.primary,
-              opacity: watermark.opacity || 0.15,
-              transform: `rotate(${watermark.rotation || -25}deg)`,
-            }}
-          >
-            {watermark.text || 'PAID'}
-          </span>
-        </div>
-      )}
-
-      {/* Render ordered active sections */}
-      {activeSections.map((sec) => {
-        if (!sec.enabled) return null;
-        const Component = sectionComponentMap[sec.id];
-        return Component ? <React.Fragment key={sec.id}>{Component()}</React.Fragment> : null;
-      })}
     </div>
   );
 }

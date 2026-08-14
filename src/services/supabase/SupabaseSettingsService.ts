@@ -100,7 +100,7 @@ export class SupabaseSettingsService implements ISettingsService {
       defaultPaymentTerms: 'Net 30',
       defaultDueDays: 30,
       defaultCurrency: 'INR',
-      defaultTemplateId: 'tmpl-modern',
+      defaultTemplateId: 'tmpl-emerald',
       notesFooter: 'Thank you for your business!',
     };
     return getStoredItem<InvoiceSettings>(STORAGE_KEYS.invoice, defaultSettings);
@@ -120,7 +120,7 @@ export class SupabaseSettingsService implements ISettingsService {
       nextNumber: 1,
       defaultValidityDays: 30,
       defaultTerms: 'Quotations valid for specified period.',
-      defaultTemplateId: 'tmpl-modern',
+      defaultTemplateId: 'tmpl-emerald',
     };
     return getStoredItem<QuoteSettings>(STORAGE_KEYS.quote, defaultSettings);
   }

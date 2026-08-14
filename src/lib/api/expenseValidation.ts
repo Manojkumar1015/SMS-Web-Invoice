@@ -1,7 +1,10 @@
 import { z } from 'zod';
 
-export const expenseCreateSchema = z.object({
+const baseExpenseSchema = z.object({
   expenseNumber: z.string().optional().or(z.literal('')),
+  expenseType: z.enum(['business', 'customer']).optional().default('business'),
+  billable: z.boolean().optional().default(false),
+  customerId: z.string().optional().nullable().or(z.literal('')),
   category: z.string().min(1, 'Expense category is required'),
   description: z.string().min(1, 'Description is required'),
   amount: z.number().gt(0, 'Expense amount must be greater than 0'),
@@ -15,5 +18,17 @@ export const expenseCreateSchema = z.object({
   status: z.string().default('approved'),
 });
 
-export const expenseUpdateSchema = expenseCreateSchema.partial();
+export const expenseCreateSchema = baseExpenseSchema.superRefine((data, ctx) => {
+  if (data.expenseType === 'customer' && (!data.customerId || !data.customerId.trim())) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Target customer is required for Customer Expense',
+      path: ['customerId'],
+    });
+  }
+});
+
+export const expenseUpdateSchema = baseExpenseSchema.partial();
+
+
 

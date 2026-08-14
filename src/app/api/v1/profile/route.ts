@@ -25,8 +25,14 @@ export async function GET(request: NextRequest) {
 
     const username = context.user.email.split('@')[0];
     const fullName = profile?.full_name || '';
+    // Phone must strictly load from profiles.phone and NEVER fallback to email
     const phone = profile?.phone || '';
-    const avatarUrl = profile?.avatar_url || '';
+    let avatarUrl = profile?.avatar_url || '';
+
+    // Safety check: sanitize any legacy base64 data URL if present
+    if (avatarUrl && avatarUrl.startsWith('data:image/')) {
+      avatarUrl = '';
+    }
 
     return successResponse(
       {
@@ -57,8 +63,6 @@ export async function PATCH(request: NextRequest) {
     const supabase = createClient();
     const body = await request.json();
 
-    console.log(`[PATCH /api/v1/profile] User ID: ${context.user.id}, Body:`, body);
-
     const parseResult = profileUpdateSchema.safeParse(body);
     if (!parseResult.success) {
       throw new ValidationError(
@@ -68,15 +72,21 @@ export async function PATCH(request: NextRequest) {
 
     const data = parseResult.data;
 
+    // Server-side safe diagnostic log (never logs passwords or base64 data)
+    console.log(`[PATCH /api/v1/profile] Payload diagnostic:`, {
+      fullName: data.fullName,
+      phone: data.phone,
+      avatarUrlPresent: Boolean(data.avatarUrl),
+      passwordRequested: Boolean(data.newPassword && data.newPassword.trim().length >= 6),
+    });
+
     // 1. Update Profile table
     const updatePayload: Record<string, any> = {
       updated_at: new Date().toISOString(),
     };
     if (data.fullName !== undefined) updatePayload.full_name = data.fullName;
-    if (data.phone !== undefined) updatePayload.phone = data.phone || null;
+    if (data.phone !== undefined) updatePayload.phone = data.phone ? data.phone.trim() : null;
     if (data.avatarUrl !== undefined) updatePayload.avatar_url = data.avatarUrl || null;
-
-    console.log(`[PATCH /api/v1/profile] Executing update for user ${context.user.id} with payload:`, updatePayload);
 
     let { data: updatedProfile, error: profileErr } = await (supabase.from('profiles' as any) as any)
       .update(updatePayload)
@@ -104,14 +114,25 @@ export async function PATCH(request: NextRequest) {
 
     console.log(`[PATCH /api/v1/profile] Update success, result:`, updatedProfile);
 
-    // 2. Update Auth Password if requested
+    // 2. Sync ONLY small full_name to Supabase Auth metadata (keep avatar_url out of auth metadata)
+    const authDataUpdate: Record<string, any> = {
+      avatar_url: null, // Keep auth metadata small to avoid HTTP 431
+    };
+    if (data.fullName !== undefined) {
+      authDataUpdate.full_name = data.fullName;
+    }
+
+    const authUpdatePayload: Record<string, any> = {
+      data: authDataUpdate,
+    };
+
     if (data.newPassword && data.newPassword.trim().length >= 6) {
-      const { error: pwdErr } = await supabase.auth.updateUser({
-        password: data.newPassword.trim(),
-      });
-      if (pwdErr) {
-        throw new ValidationError(`Password update failed: ${pwdErr.message}`);
-      }
+      authUpdatePayload.password = data.newPassword.trim();
+    }
+
+    const { error: authErr } = await supabase.auth.updateUser(authUpdatePayload);
+    if (authErr) {
+      console.warn(`[PATCH /api/v1/profile] Supabase auth updateUser warning:`, authErr.message);
     }
 
     const username = context.user.email.split('@')[0];

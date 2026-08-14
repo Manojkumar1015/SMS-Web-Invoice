@@ -55,17 +55,33 @@ export class TemplateService {
     context: AuthContext,
     options?: { search?: string; status?: string; category?: string }
   ): Promise<InvoiceTemplate[]> {
-    const rows = await this.repo.list(context.organization.id);
-    const dbTemplates = rows.map((r: any) => this.mapRowToTemplate(r));
+    let activeDefaultId = 'tmpl-emerald';
+    try {
+      const defaultRow = await this.repo.getDefault(context.organization.id);
+      if (defaultRow) {
+        activeDefaultId = defaultRow.id;
+      }
+    } catch {
+      // fallback to emerald
+    }
 
-    const dbIds = new Set(dbTemplates.map((t: InvoiceTemplate) => t.id));
-    const isAnyDefaultInDb = dbTemplates.some((t: InvoiceTemplate) => t.isDefault);
+    let result = mockTemplates.map((tpl) => {
+      const isMatch = tpl.id === activeDefaultId || (activeDefaultId.includes('emerald') && tpl.id === 'tmpl-emerald');
+      return {
+        ...tpl,
+        isDefault: isMatch,
+        config: {
+          ...tpl.config,
+          isDefault: isMatch,
+        },
+      };
+    });
 
-    const systemTemplates = mockTemplates
-      .map((sys) => (isAnyDefaultInDb ? { ...sys, isDefault: false } : sys))
-      .filter((sys) => !dbIds.has(sys.id));
-
-    let result = [...dbTemplates, ...systemTemplates].slice(0, 4);
+    // Ensure exactly 1 default template is active
+    if (!result.some((t) => t.isDefault)) {
+      result[0].isDefault = true;
+      result[0].config.isDefault = true;
+    }
 
     if (options?.search) {
       const q = options.search.toLowerCase().trim();
@@ -75,20 +91,6 @@ export class TemplateService {
           t.description.toLowerCase().includes(q) ||
           t.category.toLowerCase().includes(q)
       );
-    }
-
-    if (options?.category && options.category !== 'all') {
-      result = result.filter((t) => t.category === options.category);
-    }
-
-    if (options?.status && options.status !== 'all') {
-      if (options.status === 'custom') {
-        result = result.filter((t) => !t.isSystem);
-      } else if (options.status === 'system') {
-        result = result.filter((t) => t.isSystem);
-      } else if (options.status === 'default') {
-        result = result.filter((t) => t.isDefault);
-      }
     }
 
     return result;
@@ -116,10 +118,10 @@ export class TemplateService {
     return all[0] || mockTemplates[0] || null;
   }
 
-  async createTemplate(context: AuthContext, input: TemplateCreateInput): Promise<InvoiceTemplate> {
+  async createTemplate(context: AuthContext, input: TemplateCreateInput & { id?: string }): Promise<InvoiceTemplate> {
     requireRole(['Owner', 'Admin', 'Accountant', 'Staff'], context.membership.role);
 
-    const payload = {
+    const payload: Record<string, any> = {
       organization_id: context.organization.id,
       name: input.name,
       description: input.description || null,
@@ -128,6 +130,7 @@ export class TemplateService {
       is_active: true,
       created_by: context.user.id,
     };
+    if (input.id) payload.id = input.id;
 
     const row = await this.repo.create(payload);
 
@@ -149,10 +152,11 @@ export class TemplateService {
       const sys = mockTemplates.find((t) => t.id === id);
       if (sys) {
         return this.createTemplate(context, {
+          id: sys.id,
           name: input.name || sys.name,
           description: input.description || sys.description,
           category: sys.category,
-          isSystem: false,
+          isSystem: true,
           isDefault: input.isDefault ?? sys.isDefault,
           config: input.config || sys.config,
         });

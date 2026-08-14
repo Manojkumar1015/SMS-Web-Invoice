@@ -53,7 +53,7 @@ function NewInvoiceForm() {
   const templateIdParam = searchParams.get('templateId') || '';
 
   const [templates, setTemplates] = React.useState<InvoiceTemplate[]>([]);
-  const [selectedTemplateId, setSelectedTemplateId] = React.useState<string>(templateIdParam || 'tmpl-modern');
+  const [selectedTemplateId, setSelectedTemplateId] = React.useState<string>(templateIdParam || 'tmpl-emerald');
 
   React.useEffect(() => {
     templateService.getTemplates().then((res) => {
@@ -157,6 +157,7 @@ function NewInvoiceForm() {
       customerGstin: selectedCustomer?.gstin,
       billingAddress: selectedCustomer?.billingAddress,
       shippingAddress: selectedCustomer?.shippingAddress,
+      sameAsBillingAddress: selectedCustomer?.sameAsBillingAddress,
       date: invoiceDate,
       dueDate,
       paymentTerms,

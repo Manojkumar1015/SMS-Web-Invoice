@@ -28,10 +28,6 @@ export async function validateOrganizationCustomer(customerId: string, organizat
     return { id: customerId, is_active: true };
   }
 
-  if (!data.is_active) {
-    throw new ValidationError(`Customer '${data.display_name || data.company_name}' is archived and cannot be referenced.`);
-  }
-
   return data;
 }
 

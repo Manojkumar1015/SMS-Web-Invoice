@@ -17,6 +17,8 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || undefined;
     const status = searchParams.get('status') || undefined;
     const customerId = searchParams.get('customerId') || undefined;
+    const startDate = searchParams.get('startDate') || searchParams.get('dateStart') || undefined;
+    const endDate = searchParams.get('endDate') || searchParams.get('dateEnd') || undefined;
 
     const { page, pageSize } = validatePaginationParams({
       page: searchParams.get('page') || undefined,
@@ -33,6 +35,8 @@ export async function GET(request: NextRequest) {
       search,
       status,
       customerId,
+      startDate,
+      endDate,
       page,
       pageSize,
       sortField,

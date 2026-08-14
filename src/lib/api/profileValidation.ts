@@ -6,9 +6,12 @@ export const profileUpdateSchema = z.object({
   phone: z.string().max(30, 'Phone number is too long').optional().nullable(),
   avatarUrl: z
     .string()
-    .refine((val) => !val || val.startsWith('http://') || val.startsWith('https://') || val.startsWith('data:image/'), {
-      message: 'Invalid avatar URL',
-    })
+    .refine(
+      (val) => !val || val.startsWith('http://') || val.startsWith('https://'),
+      {
+        message: 'Avatar URL must be a valid HTTP or HTTPS storage URL',
+      }
+    )
     .optional()
     .nullable()
     .or(z.literal('')),

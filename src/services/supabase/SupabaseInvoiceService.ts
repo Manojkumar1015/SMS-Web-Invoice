@@ -7,6 +7,9 @@ export class SupabaseInvoiceService implements IInvoiceService {
     const query = new URLSearchParams();
     if (params?.search) query.set('search', params.search);
     if (params?.status) query.set('status', params.status);
+    if (params?.customerId) query.set('customerId', params.customerId);
+    if (params?.dateStart) query.set('startDate', params.dateStart);
+    if (params?.dateEnd) query.set('endDate', params.dateEnd);
     if (params?.page) query.set('page', String(params.page));
     if (params?.pageSize) query.set('pageSize', String(params.pageSize));
 
@@ -71,7 +74,8 @@ export class SupabaseInvoiceService implements IInvoiceService {
       method: 'DELETE',
     });
     if (!res.ok) {
-      throw new Error('Failed to delete invoice');
+      const errorJson = await res.json().catch(() => ({}));
+      throw new Error(errorJson.error?.message || `Failed to delete invoice (HTTP ${res.status})`);
     }
     const json = await res.json();
     return !!json.success;
@@ -85,6 +89,11 @@ export class SupabaseInvoiceService implements IInvoiceService {
       customerId: original.customerId,
       customerName: original.customerName,
       customerEmail: original.customerEmail,
+      customerPhone: original.customerPhone,
+      customerGstin: original.customerGstin,
+      billingAddress: original.billingAddress,
+      shippingAddress: original.shippingAddress,
+      sameAsBillingAddress: original.sameAsBillingAddress,
       date: new Date().toISOString().split('T')[0],
       dueDate: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
       status: 'draft',

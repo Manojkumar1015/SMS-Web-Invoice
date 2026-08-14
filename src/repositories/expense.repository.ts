@@ -5,6 +5,9 @@ export interface ExpenseQueryOptions {
   organizationId: string;
   search?: string;
   category?: string;
+  expenseScope?: string;
+  billable?: boolean;
+  customerId?: string;
   startDate?: string;
   endDate?: string;
   page?: number;
@@ -20,6 +23,9 @@ export class ExpenseRepository {
       organizationId,
       search,
       category,
+      expenseScope,
+      billable,
+      customerId,
       page = 1,
       pageSize = 25,
       sortField = 'created_at',
@@ -27,11 +33,23 @@ export class ExpenseRepository {
     } = options;
 
     let query = (supabase.from('expenses' as any) as any)
-      .select('*', { count: 'exact' })
+      .select('*, customer:customers(id, display_name)', { count: 'exact' })
       .eq('organization_id', organizationId);
 
     if (category && category !== 'all') {
       query = query.eq('category', category);
+    }
+
+    if (expenseScope && expenseScope !== 'all') {
+      query = query.eq('expense_scope', expenseScope);
+    }
+
+    if (billable !== undefined) {
+      query = query.eq('billable', billable);
+    }
+
+    if (customerId) {
+      query = query.eq('customer_id', customerId);
     }
 
     if (search && search.trim()) {
@@ -56,7 +74,7 @@ export class ExpenseRepository {
   async getById(id: string, organizationId: string) {
     const supabase = createClient();
     const { data, error } = await (supabase.from('expenses' as any) as any)
-      .select('*')
+      .select('*, customer:customers(id, display_name)')
       .eq('id', id)
       .eq('organization_id', organizationId)
       .single();
@@ -66,6 +84,55 @@ export class ExpenseRepository {
     }
 
     return data;
+  }
+
+  async getMetrics(organizationId: string) {
+    const supabase = createClient();
+    const { data, error } = await (supabase.from('expenses' as any) as any)
+      .select('id, amount, expense_date, expense_scope, billable')
+      .eq('organization_id', organizationId);
+
+    if (error) {
+      throw new DatabaseError(`Failed to fetch expense summary: ${error.message}`);
+    }
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+
+    let totalExpenses = 0;
+    let thisMonth = 0;
+    let customerExpenses = 0;
+    let businessExpenses = 0;
+    let billableExpenses = 0;
+
+    (data || []).forEach((row: any) => {
+      const amt = Number(row.amount) || 0;
+      totalExpenses += amt;
+
+      const expDate = row.expense_date ? new Date(row.expense_date) : null;
+      if (expDate && expDate.getFullYear() === currentYear && expDate.getMonth() === currentMonth) {
+        thisMonth += amt;
+      }
+
+      if (row.expense_scope === 'customer') {
+        customerExpenses += amt;
+      } else {
+        businessExpenses += amt;
+      }
+
+      if (row.billable) {
+        billableExpenses += amt;
+      }
+    });
+
+    return {
+      totalExpenses,
+      thisMonth,
+      customerExpenses,
+      businessExpenses,
+      billableExpenses,
+    };
   }
 
   async getNextExpenseNumber(organizationId: string): Promise<string> {
@@ -99,7 +166,7 @@ export class ExpenseRepository {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
-      .select()
+      .select('*, customer:customers(id, display_name)')
       .single();
 
     if (error) {
@@ -118,7 +185,7 @@ export class ExpenseRepository {
       })
       .eq('id', id)
       .eq('organization_id', organizationId)
-      .select()
+      .select('*, customer:customers(id, display_name)')
       .single();
 
     if (error) {

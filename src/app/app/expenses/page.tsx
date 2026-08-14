@@ -190,7 +190,7 @@ export default function ExpensesPage() {
           <CardContent className="p-4 space-y-1">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">This Month</span>
             <CurrencyDisplay amount={metrics?.thisMonth || 0} className="text-lg font-extrabold text-slate-900 font-mono block" />
-            <span className="text-[11px] text-slate-500">February expenses</span>
+            <span className="text-[11px] text-slate-500">{new Date().toLocaleString('en-US', { month: 'long' })} expenses</span>
           </CardContent>
         </Card>
 

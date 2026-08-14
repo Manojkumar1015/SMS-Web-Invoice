@@ -38,7 +38,7 @@ export default function EditInvoicePage() {
   const [items, setItems] = React.useState<DocumentItem[]>([]);
   const [status, setStatus] = React.useState<Invoice['status']>('draft');
   const [templates, setTemplates] = React.useState<InvoiceTemplate[]>([]);
-  const [selectedTemplateId, setSelectedTemplateId] = React.useState<string>('tmpl-white-gold');
+  const [selectedTemplateId, setSelectedTemplateId] = React.useState<string>('tmpl-emerald');
 
   React.useEffect(() => {
     templateService.getTemplates().then((res) => setTemplates(res.data));

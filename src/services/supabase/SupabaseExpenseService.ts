@@ -9,6 +9,9 @@ export class SupabaseExpenseService implements IExpenseService {
     const query = new URLSearchParams();
     if (params?.search) query.set('search', params.search);
     if (params?.category) query.set('category', params.category);
+    if (params?.expenseType) query.set('expenseType', params.expenseType);
+    if (params?.billable !== undefined) query.set('billable', String(params.billable));
+    if (params?.customerId) query.set('customerId', params.customerId);
     if (params?.page) query.set('page', String(params.page));
     if (params?.pageSize) query.set('pageSize', String(params.pageSize));
 
@@ -46,17 +49,15 @@ export class SupabaseExpenseService implements IExpenseService {
   }
 
   async getExpenseSummary(): Promise<ExpenseSummaryMetrics> {
-    const res = await this.getExpenses({ pageSize: 100 });
-    const expenses = res.data;
-    const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
-
-    return {
-      totalExpenses,
-      thisMonth: totalExpenses,
-      customerExpenses: 0,
-      businessExpenses: totalExpenses,
-      billableExpenses: 0,
-    };
+    const res = await fetch('/api/v1/expenses?summary=true', { cache: 'no-store' });
+    if (!res.ok) {
+      throw new Error('Failed to fetch expense summary');
+    }
+    const json = await res.json();
+    if (!json.success || !json.data) {
+      throw new Error(json.error?.message || 'Failed to fetch expense summary');
+    }
+    return json.data;
   }
 
   async createExpense(data: ExpenseCreateInput): Promise<Expense> {

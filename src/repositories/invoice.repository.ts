@@ -29,7 +29,7 @@ export class InvoiceRepository {
     } = options;
 
     let query = (supabase.from('invoices' as any) as any)
-      .select('*, customer:customers(id, display_name, company_name, email), items:invoice_items(*)', { count: 'exact' })
+      .select('*, customer:customers(id, display_name, company_name, email, phone, gstin, billing_address, shipping_address, same_as_billing_address), items:invoice_items(*)', { count: 'exact' })
       .eq('organization_id', organizationId);
 
     if (status && status !== 'all') {
@@ -38,6 +38,14 @@ export class InvoiceRepository {
 
     if (customerId) {
       query = query.eq('customer_id', customerId);
+    }
+
+    if (options.startDate) {
+      query = query.gte('invoice_date', options.startDate);
+    }
+
+    if (options.endDate) {
+      query = query.lte('invoice_date', options.endDate);
     }
 
     if (search && search.trim()) {
@@ -194,6 +202,11 @@ export class InvoiceRepository {
 
   async delete(id: string, organizationId: string) {
     const supabase = createClient();
+    await (supabase.from('invoice_items' as any) as any)
+      .delete()
+      .eq('invoice_id', id)
+      .eq('organization_id', organizationId);
+
     const { error } = await (supabase.from('invoices' as any) as any)
       .delete()
       .eq('id', id)

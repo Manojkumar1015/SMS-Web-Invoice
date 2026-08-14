@@ -25,6 +25,8 @@ export default function ProfileSettingsPage() {
   const [newPassword, setNewPassword] = React.useState('');
   const [confirmPassword, setConfirmPassword] = React.useState('');
 
+  const [uploadingAvatar, setUploadingAvatar] = React.useState(false);
+
   const loadProfile = React.useCallback(async () => {
     setLoading(true);
     try {
@@ -36,6 +38,7 @@ export default function ProfileSettingsPage() {
         setUsername(json.data.username || json.data.fullName || '');
         setEmail(json.data.email || '');
         setFullName(json.data.fullName || '');
+        // Phone must strictly load from json.data.phone and NEVER fallback to email
         setPhone(json.data.phone || '');
         setAvatarUrl(json.data.avatarUrl || '');
         setOrganizationName(json.data.organizationName || '');
@@ -53,26 +56,44 @@ export default function ProfileSettingsPage() {
     loadProfile();
   }, [loadProfile]);
 
-  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
-      if (!allowedTypes.includes(file.type)) {
-        toast({ title: 'Invalid Image Format', description: 'Please upload a JPG, PNG, or WebP image file.', variant: 'destructive' });
-        return;
+    if (!file) return;
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      toast({ title: 'Invalid Image Format', description: 'Please upload a JPG, PNG, or WebP image file.', variant: 'destructive' });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: 'File Size Exceeds 5MB Limit', description: 'Please select an image smaller than 5MB.', variant: 'destructive' });
+      return;
+    }
+
+    setUploadingAvatar(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/v1/profile/avatar', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error?.message || 'Failed to upload profile picture');
       }
-      if (file.size > 5 * 1024 * 1024) {
-        toast({ title: 'File Size Exceeds 5MB Limit', description: 'Please select an image smaller than 5MB.', variant: 'destructive' });
-        return;
+
+      if (json.data?.avatarUrl) {
+        setAvatarUrl(json.data.avatarUrl);
+        toast({ title: 'Profile Picture Uploaded', description: 'Click Save Profile Changes to persist changes.', variant: 'info' });
       }
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === 'string') {
-          setAvatarUrl(reader.result);
-          toast({ title: 'Profile Picture Selected', description: 'Click Save Profile Changes to persist changes.', variant: 'info' });
-        }
-      };
-      reader.readAsDataURL(file);
+    } catch (err: any) {
+      console.error('[handleAvatarUpload error]:', err);
+      toast({ title: 'Upload Failed', description: err.message || 'Could not upload profile picture', variant: 'destructive' });
+    } finally {
+      setUploadingAvatar(false);
     }
   };
 
@@ -84,9 +105,22 @@ export default function ProfileSettingsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (newPassword && newPassword !== confirmPassword) {
-      toast({ title: 'Validation Error', description: 'New password and confirmation do not match.', variant: 'destructive' });
-      return;
+    const isPasswordChangeRequested = Boolean(
+      newPassword &&
+      confirmPassword &&
+      newPassword.trim().length > 0 &&
+      confirmPassword.trim().length > 0
+    );
+
+    if (isPasswordChangeRequested) {
+      if (newPassword !== confirmPassword) {
+        toast({ title: 'Validation Error', description: 'New password and confirmation do not match.', variant: 'destructive' });
+        return;
+      }
+      if (newPassword.trim().length < 6) {
+        toast({ title: 'Validation Error', description: 'New password must be at least 6 characters.', variant: 'destructive' });
+        return;
+      }
     }
 
     setSaving(true);
@@ -96,11 +130,10 @@ export default function ProfileSettingsPage() {
         phone: phone.trim(),
         avatarUrl,
       };
-      if (newPassword && newPassword.trim().length >= 6) {
+
+      if (isPasswordChangeRequested) {
         payload.newPassword = newPassword.trim();
       }
-
-      console.log('[DEBUG handleSubmit] Submitting payload:', payload);
 
       const res = await fetch('/api/v1/profile', {
         method: 'PATCH',
@@ -109,7 +142,6 @@ export default function ProfileSettingsPage() {
       });
 
       const json = await res.json();
-      console.log('[DEBUG handleSubmit] Response status:', res.status, 'JSON:', json);
 
       if (!res.ok || !json.success) {
         throw new Error(json.error?.message || 'Failed to update profile');
@@ -128,7 +160,7 @@ export default function ProfileSettingsPage() {
         window.dispatchEvent(new Event('profile-updated'));
       }
     } catch (error: any) {
-      console.error('[DEBUG handleSubmit error]:', error);
+      console.error('[handleSubmit error]:', error);
       toast({ title: 'Error Updating Profile', description: error.message || 'Could not update profile', variant: 'destructive' });
     } finally {
       setSaving(false);
@@ -213,6 +245,7 @@ export default function ProfileSettingsPage() {
                       <Input
                         value={username}
                         disabled
+                        autoComplete="username"
                         className="pl-7 font-mono font-bold bg-slate-50 text-slate-500"
                       />
                     </div>
@@ -225,6 +258,7 @@ export default function ProfileSettingsPage() {
                     <Input
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
+                      autoComplete="name"
                       placeholder="e.g. Vikram Malhotra"
                       required
                     />
@@ -235,7 +269,7 @@ export default function ProfileSettingsPage() {
                       Email Address
                     </label>
                     <div className="relative">
-                      <Input value={email} disabled className="bg-slate-50 text-slate-500 font-mono pr-8" />
+                      <Input value={email} disabled autoComplete="email" className="bg-slate-50 text-slate-500 font-mono pr-8" />
                       <Mail className="h-4 w-4 text-slate-400 absolute right-2.5 top-2.5" />
                     </div>
                     <span className="text-[10px] text-slate-400 mt-1 block">Email is managed by Supabase Authentication.</span>
@@ -249,6 +283,7 @@ export default function ProfileSettingsPage() {
                       <Input
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
+                        autoComplete="tel"
                         placeholder="+91 98765 43210"
                       />
                       <Phone className="h-4 w-4 text-slate-400 absolute right-2.5 top-2.5" />
@@ -287,6 +322,7 @@ export default function ProfileSettingsPage() {
                     </label>
                     <Input
                       type="password"
+                      autoComplete="new-password"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       placeholder="At least 6 characters"
@@ -299,6 +335,7 @@ export default function ProfileSettingsPage() {
                     </label>
                     <Input
                       type="password"
+                      autoComplete="new-password"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="Re-enter new password"

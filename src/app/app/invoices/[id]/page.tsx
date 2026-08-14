@@ -19,7 +19,7 @@ import { LoadingState } from '@/components/ui/loading-state';
 import { ErrorState } from '@/components/ui/error-state';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Edit, Copy, Download, Printer, Send, CreditCard, Ban, ArrowLeft, History, Clock, Receipt, CheckCircle2 } from 'lucide-react';
+import { Edit, Copy, Download, Printer, Send, CreditCard, Ban, Trash2, ArrowLeft, History, Clock, Receipt, CheckCircle2 } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useToast } from '@/hooks/use-toast';
 
@@ -48,8 +48,8 @@ export default function InvoiceDetailPage() {
         const pmts = await paymentService.getPayments({ search: inv.invoiceNumber });
         setPayments(pmts.data.filter((p) => p.invoiceId === inv.id || p.invoiceNumber === inv.invoiceNumber));
 
-        let tmpl: InvoiceTemplate | null = null;
-        if (inv.templateId) {
+        let tmpl: InvoiceTemplate | null = await templateService.getDefaultTemplate().catch(() => null);
+        if (!tmpl && inv.templateId) {
           tmpl = await templateService.getTemplateById(inv.templateId).catch(() => null);
         }
         const biz = await settingsService.getBusinessSettings().catch(() => null);
@@ -106,9 +106,55 @@ export default function InvoiceDetailPage() {
     }
   };
 
-  const handleSend = async () => {
+  const handleDownloadPdf = async () => {
+    if (!invoice) return;
+    try {
+      const res = await fetch(`/api/v1/invoices/${invoice.id}/pdf?download=true`);
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error?.message || `Failed to download PDF (HTTP ${res.status})`);
+      }
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/pdf')) {
+        throw new Error('Server returned an invalid content type.');
+      }
+      const blob = await res.blob();
+      const pdfBlob = new Blob([blob], { type: 'application/pdf' });
+      const url = URL.createObjectURL(pdfBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${invoice.invoiceNumber || 'Invoice'}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast({ title: 'PDF Downloaded', description: `Downloaded ${invoice.invoiceNumber}.pdf`, variant: 'success' });
+    } catch (err: any) {
+      toast({
+        title: 'Download Failed',
+        description: err.message || 'Unable to download invoice PDF.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleSend = () => {
     if (!invoice) return;
     setSendDialogOpen(true);
+  };
+
+  const [deletingInvoice, setDeletingInvoice] = React.useState(false);
+
+  const handleDelete = async () => {
+    if (!invoice) return;
+    try {
+      await invoiceService.deleteInvoice(invoice.id);
+      toast({ title: 'Invoice Deleted', description: `Invoice ${invoice.invoiceNumber} permanently deleted.`, variant: 'info' });
+      router.push('/app/invoices');
+    } catch (err: any) {
+      toast({ title: 'Cannot Delete Invoice', description: err.message || 'Invoice cannot be deleted.', variant: 'destructive' });
+      setDeletingInvoice(false);
+    }
   };
 
   const handleCancel = async () => {
@@ -118,8 +164,9 @@ export default function InvoiceDetailPage() {
       toast({ title: 'Invoice Cancelled', description: `Invoice ${invoice.invoiceNumber} marked as cancelled.`, variant: 'info' });
       setCancellingInvoice(false);
       loadInvoiceData();
-    } catch {
-      toast({ title: 'Error', description: 'Could not cancel invoice.', variant: 'destructive' });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message || 'Could not cancel invoice.', variant: 'destructive' });
+      setCancellingInvoice(false);
     }
   };
 
@@ -161,15 +208,15 @@ export default function InvoiceDetailPage() {
             <Button variant="outline" size="sm" onClick={handleDuplicate}>
               <Copy className="h-4 w-4 mr-1" /> Duplicate
             </Button>
-            <Button variant="outline" size="sm" onClick={() => window.open(`/api/v1/invoices/${invoice.id}/pdf`, '_blank')}>
+            <Button variant="outline" size="sm" onClick={handleDownloadPdf}>
               <Download className="h-4 w-4 mr-1" /> Download PDF
             </Button>
             <Button variant="outline" size="sm" onClick={() => window.open(`/api/v1/invoices/${invoice.id}/pdf?print=true`, '_blank')}>
               <Printer className="h-4 w-4 mr-1" /> Print
             </Button>
 
-            <Button variant="outline" size="sm" onClick={handleSend}>
-              <Send className="h-4 w-4 mr-1" /> Send
+            <Button size="sm" onClick={handleSend} className="bg-blue-600 hover:bg-blue-700 text-white font-bold">
+              <Send className="h-4 w-4 mr-1.5" /> Send via WhatsApp
             </Button>
 
             {invoice.amountDue > 0 && invoice.status !== 'cancelled' && (
@@ -178,9 +225,15 @@ export default function InvoiceDetailPage() {
               </Button>
             )}
 
-            {invoice.status !== 'cancelled' && (
-              <Button variant="outline" size="sm" onClick={() => setCancellingInvoice(true)} className="text-amber-700 border-amber-300 hover:bg-amber-50">
-                <Ban className="h-4 w-4 mr-1" /> Cancel
+            {invoice.amountPaid > 0 || payments.length > 0 ? (
+              invoice.status !== 'cancelled' && (
+                <Button variant="outline" size="sm" onClick={() => setCancellingInvoice(true)} className="text-amber-700 border-amber-300 hover:bg-amber-50 font-medium">
+                  <Ban className="h-4 w-4 mr-1" /> Cancel Invoice
+                </Button>
+              )
+            ) : (
+              <Button variant="outline" size="sm" onClick={() => setDeletingInvoice(true)} className="text-red-600 border-red-200 hover:bg-red-50 font-medium">
+                <Trash2 className="h-4 w-4 mr-1" /> Delete
               </Button>
             )}
           </div>
@@ -369,10 +422,23 @@ export default function InvoiceDetailPage() {
           open={cancellingInvoice}
           onOpenChange={setCancellingInvoice}
           title="Cancel Invoice?"
-          description={`Are you sure you want to cancel invoice ${invoice.invoiceNumber}?`}
+          description={`Are you sure you want to cancel invoice ${invoice.invoiceNumber}? This will mark it as cancelled while preserving payments and history.`}
           confirmLabel="Cancel Invoice"
           variant="destructive"
           onConfirm={handleCancel}
+        />
+      )}
+
+      {/* Confirm Delete Dialog */}
+      {deletingInvoice && (
+        <ConfirmDialog
+          open={deletingInvoice}
+          onOpenChange={setDeletingInvoice}
+          title="Delete Invoice?"
+          description={`Are you sure you want to permanently delete invoice ${invoice.invoiceNumber}?`}
+          confirmLabel="Delete Invoice"
+          variant="destructive"
+          onConfirm={handleDelete}
         />
       )}
 
@@ -388,7 +454,11 @@ export default function InvoiceDetailPage() {
             customerName: invoice.customerName,
             customerEmail: invoice.customerEmail,
             customerPhone: invoice.customerPhone,
+            date: invoice.date,
+            dueDate: invoice.dueDate,
             total: invoice.total,
+            amountPaid: invoice.amountPaid,
+            amountDue: invoice.amountDue,
           }}
         />
       )}

@@ -6,7 +6,11 @@ export type TemplateCategory =
   | 'corporate'
   | 'creative'
   | 'elegant'
-  | 'gst_standard';
+  | 'gst_standard'
+  | 'emerald'
+  | 'royal_blue'
+  | 'burgundy'
+  | 'amber';
 
 export interface BrandingConfig {
   logoUrl?: string;

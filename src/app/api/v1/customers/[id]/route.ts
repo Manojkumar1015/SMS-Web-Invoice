@@ -39,8 +39,8 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
 
   try {
     const context = await getAuthContext();
-    await service.archiveCustomer(context, params.id);
-    return successResponse({ archived: true, id: params.id }, 200, undefined, requestId);
+    const result = await service.deleteCustomer(context, params.id);
+    return successResponse({ ...result, id: params.id }, 200, undefined, requestId);
   } catch (error) {
     return errorResponse(error, requestId);
   }
